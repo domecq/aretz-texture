@@ -1,7 +1,7 @@
 [project]
 name = "aretz-texture"
 version = "0.1.0"
-description = "Add your description here"
+description = "Aretz textyre is an analysis tool that reduces a MusicXML score to its harmonic structure in four voices, with two rhythmic modes and several granularity levels."
 readme = "README.md"
 authors = [
     { name = "Nicolás Ernesto Peralta", email = "nperalta@gmail.com" }
@@ -9,9 +9,135 @@ authors = [
 requires-python = ">=3.12"
 dependencies = []
 
-[project.scripts]
-aretz-texture = "aretz_texture:main"
 
 [build-system]
 requires = ["uv_build>=0.13.7,<0.14.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.170.15",
+    "import-linter>=2.16",
+    "pre-commit>=4.7.0",
+    "pyright>=1.1.414",
+    "pytest>=9.2.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.4",
+]
+
+# Quality tooling. Every tool targets Python 3.12, the single version used
+# locally, in pre-commit and in CI.
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",       # pyflakes
+    "I",       # import sorting
+    "N",       # naming
+    "D",       # docstrings
+    "ANN",     # type annotations (ANN401 forbids Any)
+    "B",       # likely bugs
+    "UP",      # modern syntax
+    "SIM",     # simplifications
+    "C90",     # cyclomatic complexity
+    "PL",      # pylint: arguments, branches, magic values
+    "BLE",     # blind except
+    "T20",     # print statements
+    "ERA",     # commented out code
+    "TD",      # TODO format, must reference an issue
+    "PT",      # pytest style
+    "RUF",     # ruff specific
+]
+ignore = [
+    "TD002",   # TODO author: the linked issue already identifies it
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-branches = 10
+max-returns = 4
+max-statements = 40
+
+[tool.ruff.lint.per-file-ignores]
+# Test names describe the behavior; literal values in assertions are the point.
+"tests/**" = ["D", "PLR2004"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--strict-markers", "--import-mode=importlib"]
+markers = [
+    "slow: tests that take more than a few seconds; excluded from the commit checks",
+]
+
+[tool.importlinter]
+root_package = "aretz_texture"
+
+[[tool.importlinter.contracts]]
+name = "core imports nothing from the project"
+type = "forbidden"
+source_modules = ["aretz_texture.core"]
+forbidden_modules = [
+    "aretz_texture.ingest",
+    "aretz_texture.analysis",
+    "aretz_texture.voicing",
+    "aretz_texture.render",
+    "aretz_texture.eval",
+]
+
+[[tool.importlinter.contracts]]
+name = "analysis and voicing depend only on core"
+type = "forbidden"
+source_modules = ["aretz_texture.analysis", "aretz_texture.voicing"]
+forbidden_modules = [
+    "aretz_texture.ingest",
+    "aretz_texture.render",
+    "aretz_texture.eval",
+]
+
+[[tool.importlinter.contracts]]
+name = "analysis and voicing are independent of each other"
+type = "independence"
+modules = ["aretz_texture.analysis", "aretz_texture.voicing"]
+
+[[tool.importlinter.contracts]]
+name = "ingest only produces core objects"
+type = "forbidden"
+source_modules = ["aretz_texture.ingest"]
+forbidden_modules = [
+    "aretz_texture.analysis",
+    "aretz_texture.voicing",
+    "aretz_texture.render",
+    "aretz_texture.eval",
+]
+
+[[tool.importlinter.contracts]]
+name = "render consumes the tree, never the analysis"
+type = "forbidden"
+source_modules = ["aretz_texture.render"]
+forbidden_modules = [
+    "aretz_texture.ingest",
+    "aretz_texture.analysis",
+    "aretz_texture.voicing",
+    "aretz_texture.eval",
+]
