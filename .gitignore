@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+build/
+dist/
+*.egg-info/
+
+# Environments and secrets
+.venv/
+.env
+.env.*
+
+# Tool caches and reports
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
+
+# Editors and OS
+.DS_Store
+.vscode/
+.idea/
+
+# Scores protected by copyright stay outside the repository (ADR 0001)
+private_corpus/

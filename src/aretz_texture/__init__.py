@@ -1,2 +1,1 @@
-def main() -> None:
-    print("Hello from aretz-texture!")
+"""Aretz Texture: harmonic reduction of MusicXML scores to four voices."""
