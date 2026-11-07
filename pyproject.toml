@@ -89,6 +89,8 @@ venv = ".venv"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--strict-markers", "--import-mode=importlib"]
+# Lets tests share helper modules such as tests/music21_builders.py.
+pythonpath = ["."]
 markers = [
     "slow: tests that take more than a few seconds; excluded from the commit checks",
 ]
