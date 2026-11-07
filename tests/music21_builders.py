@@ -4,7 +4,7 @@
 from collections.abc import Sequence
 from pathlib import Path
 
-from music21 import converter, key, meter, note, stream
+from music21 import converter, corpus, key, meter, note, stream
 
 BAR_LENGTH = 4.0
 
@@ -60,5 +60,12 @@ def score_of(*parts: stream.Part) -> stream.Score:
 def parse_score(path: Path) -> stream.Score:
     """Parse a MusicXML file written by the tool and check that music21 gives a score."""
     parsed = converter.parse(path)
+    assert isinstance(parsed, stream.Score)
+    return parsed
+
+
+def corpus_score(identifier: str) -> stream.Score:
+    """Parse a music21 corpus score and check that music21 gives a score."""
+    parsed = corpus.parse(identifier)
     assert isinstance(parsed, stream.Score)
     return parsed
