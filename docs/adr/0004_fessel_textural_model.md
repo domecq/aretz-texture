@@ -1,7 +1,7 @@
 # ADR 0004: Fessel's textural model as the theoretical foundation
 
 Date: November 7, 2026
-Status: Proposed
+Status: Accepted
 
 ## Context
 

@@ -7,7 +7,10 @@ authors = [
     { name = "Nicolás Ernesto Peralta", email = "nperalta@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "music21>=10.5,<11",
+    "pydantic>=2.10,<3",
+]
 
 
 [build-system]
