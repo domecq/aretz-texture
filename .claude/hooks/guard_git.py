@@ -15,6 +15,7 @@ Exit code 2 blocks the tool call and sends the message on stderr to the agent.
 """
 
 import json
+import os
 import shlex
 import subprocess
 import sys
@@ -28,9 +29,16 @@ PROTECTED_BRANCH = "main"
 SHELL_PUNCTUATION = "();<>|&\n"
 COMMAND_SEPARATORS = frozenset({"&&", "||", ";", "|", "&", "\n", "(", ")"})
 
-GIT_OPTIONS_WITH_VALUE = frozenset({"-C", "-c", "--git-dir", "--work-tree"})
+GIT_OPTIONS_WITH_VALUE = frozenset(
+    {"-C", "-c", "--config-env", "--git-dir", "--work-tree", "--namespace"}
+)
+# Global options that set configuration: "-c name=value" and "--config-env name=VARIABLE".
+GIT_CONFIG_OPTIONS = frozenset({"-c", "--config-env"})
 HOOK_BYPASS_SETTING = "core.hookspath"
 HOOK_BYPASS_VARIABLES = frozenset({"SKIP", "PRE_COMMIT_ALLOW_NO_CONFIG"})
+# Environment variables through which git reads configuration (GIT_CONFIG_PARAMETERS,
+# GIT_CONFIG_KEY_0 and the like).
+GIT_CONFIG_VARIABLE_PREFIX = "GIT_CONFIG"
 
 NO_VERIFY = "--no-verify"
 # git accepts unambiguous prefixes of long options; "--no-ve" is still ambiguous
@@ -73,25 +81,40 @@ def split_assignments(segment: list[str]) -> tuple[dict[str, str], list[str]]:
     return assignments, segment[index:]
 
 
-def parse_git(segment: list[str], cwd: Path) -> tuple[str, list[str], Path, list[str]] | None:
-    """Return subcommand, arguments, working directory and ``-c`` settings of a git call."""
-    if not segment or Path(segment[0]).name != "git":
-        return None
+def global_options(segment: list[str]) -> tuple[list[tuple[str, str]], int]:
+    """Return the global options of a git call as (option, value) pairs.
+
+    Also returns the index of the subcommand. Options written as
+    ``--option=value`` are split into their name and value.
+    """
+    options: list[tuple[str, str]] = []
     index = 1
-    workdir = cwd
-    settings: list[str] = []
     while index < len(segment) and segment[index].startswith("-"):
-        option = segment[index]
-        if option in GIT_OPTIONS_WITH_VALUE and index + 1 < len(segment):
-            if option == "-C":
-                workdir = cwd / segment[index + 1]
-            elif option == "-c":
-                settings.append(segment[index + 1])
+        option, separator, attached_value = segment[index].partition("=")
+        if separator and option.startswith("--"):
+            options.append((option, attached_value))
+            index += 1
+        elif option in GIT_OPTIONS_WITH_VALUE and index + 1 < len(segment):
+            options.append((option, segment[index + 1]))
             index += 2
         else:
+            options.append((segment[index], ""))
             index += 1
+    return options, index
+
+
+def parse_git(segment: list[str], cwd: Path) -> tuple[str, list[str], Path, list[str]] | None:
+    """Return subcommand, arguments, working directory and configuration of a git call."""
+    if not segment or Path(segment[0]).name != "git":
+        return None
+    options, index = global_options(segment)
     if index >= len(segment):
         return None
+    workdir = cwd
+    for option, value in options:
+        if option == "-C":
+            workdir = cwd / value
+    settings = [value for option, value in options if option in GIT_CONFIG_OPTIONS]
     return segment[index], segment[index + 1 :], workdir, settings
 
 
@@ -126,6 +149,11 @@ def bypasses_hooks(environment: dict[str, str], settings: list[str]) -> bool:
     """Tell whether the environment or git settings disable the pre-commit checks."""
     if HOOK_BYPASS_VARIABLES.intersection(environment):
         return True
+    if any(
+        name.startswith(GIT_CONFIG_VARIABLE_PREFIX) and HOOK_BYPASS_SETTING in value.lower()
+        for name, value in environment.items()
+    ):
+        return True
     return any(setting.lower().startswith(HOOK_BYPASS_SETTING) for setting in settings)
 
 
@@ -142,7 +170,10 @@ def current_branch(workdir: Path) -> str | None:
 
 
 def pre_commit_hook_installed(workdir: Path) -> bool:
-    """Tell whether the pre-commit git hook exists in the repository."""
+    """Tell whether an executable pre-commit git hook exists in the repository.
+
+    Git silently ignores a hook file without execute permission.
+    """
     result = subprocess.run(
         ["git", "rev-parse", "--git-path", "hooks/pre-commit"],
         cwd=workdir,
@@ -152,7 +183,8 @@ def pre_commit_hook_installed(workdir: Path) -> bool:
     )
     if result.returncode != 0:
         return False
-    return (workdir / result.stdout.strip()).is_file()
+    hook_file = workdir / result.stdout.strip()
+    return hook_file.is_file() and os.access(hook_file, os.X_OK)
 
 
 def refspec_destination(refspec: str, workdir: Path) -> str | None:

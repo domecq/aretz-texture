@@ -29,6 +29,7 @@ def make_repo(path: Path, branch: str, *, with_pre_commit_hook: bool) -> Path:
         hook_file = path / ".git" / "hooks" / "pre-commit"
         hook_file.parent.mkdir(parents=True, exist_ok=True)
         hook_file.write_text("#!/bin/sh\n")
+        hook_file.chmod(0o755)
     return path
 
 
@@ -76,6 +77,9 @@ def test_blocks_short_and_abbreviated_no_verify(feature_repo: Path, command: str
         'SKIP=pyright git commit -m "Skip"',
         'PRE_COMMIT_ALLOW_NO_CONFIG=1 git commit -m "Skip"',
         'git -c core.hooksPath=/dev/null commit -m "Skip"',
+        'HOOKS=/dev/null git --config-env=core.hooksPath=HOOKS commit -m "Skip"',
+        'HOOKS=/dev/null git --config-env core.hooksPath=HOOKS commit -m "Skip"',
+        "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/x git commit",
     ],
 )
 def test_blocks_commit_that_disables_hooks(feature_repo: Path, command: str) -> None:
@@ -112,6 +116,12 @@ def test_blocks_commit_without_pre_commit_hook(tmp_path: Path) -> None:
 
     assert result.returncode == BLOCKED
     assert "pre-commit install" in result.stderr
+
+
+def test_blocks_commit_when_pre_commit_hook_is_not_executable(feature_repo: Path) -> None:
+    (feature_repo / ".git" / "hooks" / "pre-commit").chmod(0o644)
+
+    assert run_hook('git commit -m "Add test"', feature_repo).returncode == BLOCKED
 
 
 @pytest.mark.parametrize(
