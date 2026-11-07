@@ -120,3 +120,6 @@ Review the diff against the corresponding spec and against these rules.
 * Changes outside the scope of the spec.
 * Code, comments or documentation not written in English.
 * Writing errors in documentation.
+
+### Scope of the agent hooks
+The hooks in `.claude/hooks/` are guard rails for agents, not a security boundary: CI and the ruleset on `main` are the final authority. Report ways to bypass them through shell indirection (aliases, wrappers, scripts, uncommon git options or environment variables) as P2. A plain `git commit` or `git push` that skips the checks, or a hook that blocks a legitimate command, remains P1.
