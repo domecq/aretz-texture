@@ -12,6 +12,8 @@ from aretz_texture.core.errors import UnsupportedScoreError
 from aretz_texture.core.notation import EventPitch, NotatedVoice, NoteEvent
 from aretz_texture.core.score import Bar, KeySignatureChange, Part, Score, TimeSignatureChange
 
+WHOLE_REST = Fraction(4)
+
 
 def write_full_score(score: Score, output_path: Path) -> None:
     """Write a score as MusicXML with one staff per part, in score order.
@@ -55,7 +57,7 @@ def _build_measure(score: Score, part: Part, bar: Bar) -> stream.Measure:
     key_changes = [
         change for change in part.key_signatures if bar.onset <= change.onset < _bar_end(bar)
     ]
-    key_offsets = {change.onset - bar.onset for change in key_changes} - {Fraction(0)}
+    key_offsets = _rest_split_offsets(score, bar, key_changes)
     containers = _containers(measure, voice_count)
     for container, events in zip(containers, events_by_voice, strict=False):
         _fill(container, events, bar, key_offsets)
@@ -135,6 +137,21 @@ def _insert_key_signature(
     raise UnsupportedScoreError(message)
 
 
+def _rest_split_offsets(
+    score: Score, bar: Bar, key_changes: list[KeySignatureChange]
+) -> set[Fraction]:
+    offsets = {change.onset - bar.onset for change in key_changes} - {Fraction(0)}
+    # When music21 reads a measure whose only element is a whole rest of another length than
+    # the meter, it stretches the rest to the whole meter. A short bar of exactly four
+    # quarters in a longer meter, such as a pickup in 3/2, would grow, so its rest is cut.
+    if (
+        bar.duration == WHOLE_REST
+        and _time_signature_in_force(score, bar).bar_duration() != WHOLE_REST
+    ):
+        offsets.add(bar.duration / 2)
+    return offsets
+
+
 def _set_padding(measure: stream.Measure, score: Score, bar: Bar) -> None:
     meter_in_force = _time_signature_in_force(score, bar)
     missing = meter_in_force.bar_duration() - bar.duration
@@ -156,8 +173,12 @@ def _build_note(event: NoteEvent) -> note.GeneralNote:
     element = notes[0] if len(notes) == 1 else chord.Chord(notes)
     if len(notes) > 1:
         element.quarterLength = event.duration
+        _keep_duration_as_written(element)
     if event.fermata:
-        element.expressions.append(expressions.Fermata())
+        fermata = expressions.Fermata()
+        # music21 makes a fermata inverted, printed below the staff, unless told otherwise.
+        fermata.type = "upright"
+        element.expressions.append(fermata)
     return element
 
 
@@ -169,6 +190,7 @@ def _build_pitch(event_pitch: EventPitch, duration: Fraction) -> note.Note:
     if spelled.alter != 0:
         music21_pitch.accidental = pitch.Accidental(spelled.alter)
     music21_note = note.Note(music21_pitch, quarterLength=duration)
+    _keep_duration_as_written(music21_note)
     if event_pitch.tie is not None:
         music21_note.tie = tie.Tie(event_pitch.tie.value)
     return music21_note
@@ -176,3 +198,11 @@ def _build_pitch(event_pitch: EventPitch, duration: Fraction) -> note.Note:
 
 def _bar_end(bar: Bar) -> Fraction:
     return bar.onset + bar.duration
+
+
+def _keep_duration_as_written(element: note.GeneralNote) -> None:
+    # On writing, music21 merges tied notes that complete a tuplet into one longer note,
+    # unless the duration is marked as set by hand rather than inferred from its length.
+    # Reading `tuplets` first makes music21 work out the components that the mark freezes.
+    if element.duration.tuplets:
+        element.duration.expressionIsInferred = False

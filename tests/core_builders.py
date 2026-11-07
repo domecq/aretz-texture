@@ -22,6 +22,14 @@ from aretz_texture.core.score import (
 FOUR_FOUR = TimeSignatureChange(onset=Fraction(0), numerator=4, denominator=4)
 
 
+def spelled_pitch(pitch: str) -> SpelledPitch:
+    """Return a pitch written like "C4", "F#4" or "Bb3"."""
+    alter = {"#": 1, "b": -1}.get(pitch[1], 0)
+    return SpelledPitch(
+        step=STEP_NAMES["CDEFGAB".index(pitch[0])], alter=alter, octave=int(pitch[-1])
+    )
+
+
 def event(
     onset: Fraction | int,
     duration: Fraction | int,
@@ -29,14 +37,21 @@ def event(
     fermata: bool = False,
     tie: TieType | None = None,
 ) -> NoteEvent:
-    """Return an event with one pitch written like "C4", "F#4" or "Bb3"."""
-    step = STEP_NAMES["CDEFGAB".index(pitch[0])]
-    alter = {"#": 1, "b": -1}.get(pitch[1], 0)
-    spelled = SpelledPitch(step=step, alter=alter, octave=int(pitch[-1]))
+    """Return an event with one pitch."""
+    return divided_event(onset, duration, (pitch, tie), fermata=fermata)
+
+
+def divided_event(
+    onset: Fraction | int,
+    duration: Fraction | int,
+    *pitches: tuple[str, TieType | None],
+    fermata: bool = False,
+) -> NoteEvent:
+    """Return an event with the given pitches, each with its tie, highest first."""
     return NoteEvent(
         onset=Fraction(onset),
         duration=Fraction(duration),
-        pitches=(EventPitch(pitch=spelled, tie=tie),),
+        pitches=tuple(EventPitch(pitch=spelled_pitch(name), tie=tie) for name, tie in pitches),
         fermata=fermata,
     )
 

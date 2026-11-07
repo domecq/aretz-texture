@@ -4,7 +4,7 @@ from fractions import Fraction
 from pathlib import Path
 
 import pytest
-from music21 import note, stream
+from music21 import expressions, note, stream
 from tests.core_builders import FOUR_FOUR, event, part_of, score_of
 from tests.music21_builders import parse_score
 
@@ -180,3 +180,39 @@ def test_a_time_signature_change_on_a_bar_line_survives(tmp_path: Path) -> None:
     )
 
     assert round_trip_built(score, tmp_path / "meter.musicxml") == score
+
+
+def test_fermatas_are_written_upright(tmp_path: Path) -> None:
+    score = score_of(part_of([event(0, 4, fermata=True), event(4, 4)]))
+    path = tmp_path / "fermata.musicxml"
+
+    write_full_score(score, path)
+
+    fermatas = [
+        expression
+        for element in parse_score(path).parts[0].recurse().notes
+        for expression in element.expressions
+        if isinstance(expression, expressions.Fermata)
+    ]
+    assert [fermata.type for fermata in fermatas] == ["upright"]
+
+
+def test_a_triplet_of_tied_notes_is_not_merged_into_one_note(tmp_path: Path) -> None:
+    third = Fraction(1, 3)
+    triplet = [
+        event(0, third, tie=TieType.START),
+        event(third, third, tie=TieType.CONTINUE),
+        event(2 * third, third, tie=TieType.STOP),
+    ]
+    score = score_of(part_of([*triplet, event(1, 3)]), bar_durations=(4,))
+
+    assert round_trip_built(score, tmp_path / "triplet.musicxml") == score
+
+
+def test_a_silent_pickup_of_four_quarters_in_three_two_time_keeps_its_length(
+    tmp_path: Path,
+) -> None:
+    three_two = TimeSignatureChange(onset=Fraction(0), numerator=3, denominator=2)
+    score = score_of(part_of([event(4, 6)]), bar_durations=(4, 6), time_signatures=(three_two,))
+
+    assert round_trip_built(score, tmp_path / "pickup.musicxml") == score
