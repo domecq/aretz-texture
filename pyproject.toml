@@ -7,7 +7,10 @@ authors = [
     { name = "Nicolás Ernesto Peralta", email = "nperalta@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "music21>=10.5,<11",
+    "pydantic>=2.10,<3",
+]
 
 
 [build-system]
@@ -83,15 +86,28 @@ typeCheckingMode = "strict"
 venvPath = "."
 venv = ".venv"
 
+# Tests build music21 objects to exercise the boundary, so they share its relaxed rules
+# for music21's partially typed API (ADR 0003). Source modules outside ingest/ and
+# render/ keep the full strict rules.
+[[tool.pyright.executionEnvironments]]
+root = "tests"
+extraPaths = ["src", "."]
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--strict-markers", "--import-mode=importlib"]
+# Lets tests share helper modules such as tests/music21_builders.py.
+pythonpath = ["."]
 markers = [
     "slow: tests that take more than a few seconds; excluded from the commit checks",
 ]
 
 [tool.importlinter]
 root_package = "aretz_texture"
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "core imports nothing from the project"
@@ -141,3 +157,16 @@ forbidden_modules = [
     "aretz_texture.voicing",
     "aretz_texture.eval",
 ]
+
+[[tool.importlinter.contracts]]
+name = "music21 only at the boundary"
+type = "forbidden"
+source_modules = [
+    "aretz_texture.core",
+    "aretz_texture.analysis",
+    "aretz_texture.voicing",
+    "aretz_texture.eval",
+]
+forbidden_modules = ["music21"]
+# eval reaches music21 through ingest and render, which is intended (ADR 0003).
+allow_indirect_imports = true

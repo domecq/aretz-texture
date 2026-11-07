@@ -1,7 +1,7 @@
 # ADR 0003: music21 boundary and runtime dependencies
 
 Date: November 7, 2026
-Status: Proposed
+Status: Accepted
 
 ## Context
 
