@@ -29,7 +29,23 @@ Create the public repository, bring in the design documents and set up the quali
 * pre-commit runs the project tools through `uv run --frozen`, so their versions come from `uv.lock`, the same ones CI uses. It also refuses commits made directly on `main`.
 * CI runs a single job named `checks`, which becomes the required status check for `main`.
 
+### Protecting main
+
+* The repository only allows squash merges and deletes the branch after merging. Each commit on `main` is one pull request.
+* A ruleset on `main` forbids deleting it and force pushes, requires a pull request, requires the `checks` job to pass on a branch up to date with `main`, and requires every review thread to be resolved, so Codex comments cannot be ignored silently. Required approvals stay at zero, because GitHub does not let authors approve their own pull requests; merging is Nico's approval.
+* The protection was applied after CI passed on the quality tooling pull request and before merging it, so the first protected merge was also the first proof that the rules work.
+* Deleting merged branches loses nothing: the pull request keeps its commits, diff, reviews and CI results, and can restore the branch.
+
+### Agents and hooks
+
+* Claude Code runs on the Claude subscription, for a fixed cost. API credits are reserved for unattended automation.
+* Codex review runs through the ChatGPT Plus plan.
+* Five subagents in `.claude/agents/`: architect (Opus), implementer (Sonnet), explorer, QA runner and documenter (Haiku). The explorer is read only and the QA runner cannot edit files.
+* Layer 1 hook: lint and format every edited Python file. Layer 2 hook: block `--no-verify`, commits without the pre-commit hook installed and pushes to `main`.
+* Layer 2 was redesigned while building it. The plan was to rerun every check before each commit, but the pre-commit git hook already does that and its output already reaches the agent. The useful job left for layer 2 was making sure layer 3 cannot be skipped. Both hooks have their own tests.
+
 ## Notes for the article
 
 * Small environment details (an SSH passphrase, an author name) surfaced only when the first real commits were made. In a public repository they matter from the first commit, because the history cannot be cleaned without rewriting it.
 * Running every check through the lock file keeps one source of truth for tool versions across the developer machine, the agents and CI.
+* The guards for agents are code like any other: they live in the repository, follow the same rules and have tests. The first lint run on the hook scripts flagged a function with too many returns, so the rules applied to the tooling from day one.

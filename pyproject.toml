@@ -77,7 +77,7 @@ max-statements = 40
 docstring-code-format = true
 
 [tool.pyright]
-include = ["src", "tests"]
+include = ["src", "tests", ".claude/hooks"]
 pythonVersion = "3.12"
 typeCheckingMode = "strict"
 venvPath = "."
