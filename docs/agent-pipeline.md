@@ -53,7 +53,7 @@ Model: **Claude Haiku 5.5**.
 
 ### External reviewer
 Tool: **Codex code review on GitHub** (OpenAI), through Nico's ChatGPT Plus plan.
-* Automatic review on every PR, guided by the `Review guidelines` section of `AGENTS.md`. A review can also be requested by commenting `@codex review`.
+* Automatic review on every PR, guided by the `Code Review Rules` section of `AGENTS.md`. A review can also be requested by commenting `@codex review`.
 * The Plus plan has usage limits per time window; small PRs reviewed one at a time stay well within them.
 * On GitHub it reports only P0 and P1 findings by default; repository rules can raise other categories.
 * For local or CI reviews through Codex CLI the model can be pinned: **GPT-6.1 Sol** as the base, **GPT-6 Astra** reserved for changes to the algorithmic core.
@@ -102,7 +102,7 @@ docs/
     journal/         dated session entries, raw material for the process article
 .claude/
     agents/          definition of each role with its model and tools
-AGENTS.md            conventions and Review guidelines (single source)
+AGENTS.md            conventions and Code Review Rules (single source)
 CLAUDE.md            imports AGENTS.md and adds Claude Code specifics
 LICENSE              MIT
 ```
@@ -158,7 +158,7 @@ Clean Code principles are followed, adapted to idiomatic Python. Where Clean Cod
 * **ruff** with rules for cyclomatic complexity (C901), number of arguments and branches (PLR), naming (N), docstrings (D) and annotations (ANN), with strict thresholds.
 * **pyright** in strict mode.
 * **Architecture test** that verifies the direction of dependencies between packages.
-* Rules that cannot be automated (intention revealing names, single responsibility, useful comments) go into the `Review guidelines` section of `AGENTS.md` as P1, so Codex flags them on every PR.
+* Rules that cannot be automated (intention revealing names, single responsibility, useful comments) go into the `Code Review Rules` section of `AGENTS.md` as P1, so Codex flags them on every PR.
 * Claude agents receive the same rules through `CLAUDE.md`, which imports `AGENTS.md`.
 
 ## 10. Quality checks at commit time

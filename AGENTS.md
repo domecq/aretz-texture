@@ -95,7 +95,7 @@ The package lives in `src/aretz_texture/` (ADR 0002). Packages and dependency di
   4. it does not break existing public interfaces, or the change is justified in an ADR,
   5. documentation and glossary are updated.
 
-## Review guidelines
+## Code Review Rules
 
 Review the diff against the corresponding spec and against these rules.
 
