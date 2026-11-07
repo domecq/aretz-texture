@@ -64,7 +64,7 @@ The package lives in `src/aretz_texture/` (ADR 0002). Packages and dependency di
 ### Types and data
 * Every function fully annotated, arguments and return, with modern builtin types (`list[int]`, `X | None`).
 * Data models with pydantic, immutable (`frozen=True`).
-* `Any` is forbidden except at the boundary with music21, encapsulated in `ingest/`.
+* `Any` is forbidden except at the boundary with music21, encapsulated in `ingest/` and `render/` (ADR 0003).
 
 ### Validation and errors
 * Validate at the edges: ingestion, configuration and, later, the API. Inside the core, trust the types and do not revalidate.
