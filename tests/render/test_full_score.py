@@ -2,7 +2,8 @@
 
 from pathlib import Path
 
-from music21 import stream
+from music21 import note, stream
+from tests.core_builders import event, part_of, score_of
 from tests.music21_builders import parse_score
 
 from aretz_texture.core.notation import TieType
@@ -38,6 +39,11 @@ def test_a_bar_with_only_notated_voice_one_is_written_without_music21_voices(
     for part in written.parts:
         for measure in part.getElementsByClass(stream.Measure):
             assert not measure.hasVoices()
+
+
+def score_with_voices_in_second_bar() -> Score:
+    """Return a one part score whose notated voice 1 is silent in bar 2, where voice 2 sounds."""
+    return score_of(part_of([event(0, 4)], [event(4, 4)]))
 
 
 def round_trip(identifier: str, path: Path) -> tuple[Score, Score]:
@@ -86,3 +92,33 @@ def test_a_tie_across_a_bar_line_survives_the_full_score_round_trip(tmp_path: Pa
         for event in part.voices[0].events
         for pitch in event.pitches
     )
+
+
+def test_notated_voices_survive_the_full_score_round_trip(tmp_path: Path) -> None:
+    original, returned = round_trip("bach/bwv248.23-2", tmp_path / "chorale.musicxml")
+
+    assert returned == original
+    assert any(len(part.voices) == 2 for part in original.parts)
+
+
+def test_a_bar_with_several_notated_voices_holds_numbered_music21_voices(tmp_path: Path) -> None:
+    score = score_with_voices_in_second_bar()
+    path = tmp_path / "voices.musicxml"
+
+    write_full_score(score, path)
+
+    measures = list(parse_score(path).parts[0].getElementsByClass(stream.Measure))
+    assert not measures[0].hasVoices()
+    assert [voice.id for voice in measures[1].voices] == ["1", "2"]
+
+
+def test_a_notated_voice_that_is_silent_in_a_bar_is_a_whole_bar_rest(tmp_path: Path) -> None:
+    score = score_with_voices_in_second_bar()
+    path = tmp_path / "voices.musicxml"
+
+    write_full_score(score, path)
+
+    measures = list(parse_score(path).parts[0].getElementsByClass(stream.Measure))
+    silent_voice = measures[1].voices[0]
+    assert [(rest.offset, rest.quarterLength) for rest in silent_voice.notesAndRests] == [(0, 4)]
+    assert all(isinstance(element, note.Rest) for element in silent_voice.notesAndRests)
