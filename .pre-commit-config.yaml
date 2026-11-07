@@ -9,6 +9,8 @@ repos:
       - id: no-commit-to-branch
         args: [--branch, main]
       - id: trailing-whitespace
+        # Source documents are kept verbatim; trailing spaces there are Markdown line breaks.
+        exclude: ^docs/theory/sources/
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-toml
@@ -22,7 +24,8 @@ repos:
         name: ruff format
         entry: uv run --frozen ruff format --check
         language: system
-        types: [python]
+        # ruff also formats Python code blocks inside Markdown, as CI checks.
+        types_or: [python, markdown]
       - id: ruff-check
         name: ruff check
         entry: uv run --frozen ruff check

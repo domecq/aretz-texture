@@ -4,17 +4,18 @@ Single source of conventions for all agents (Claude Code, Codex, Cursor) and for
 
 ## Project
 
-Aretz Texture (`aretz_texture`): an analysis tool that reduces a MusicXML score to its harmonic structure in four voices, with two rhythmic modes and several granularity levels. Free and open source under the MIT License (ADR 0001). Named in honor of Isabel Aretz, composer and ethnomusicologist.
+Aretz Texture (`aretz_texture`): an analysis tool that describes how the texture of a MusicXML score is organized and reduces its harmonic structure to four voices, with two rhythmic modes and several granularity levels. The analysis is based on Pablo Fessel's model of textural strata (ADR 0004); musical decisions must be consistent with `docs/theory/fessel_textural_model.md`. Free and open source under the MIT License (ADR 0001). Named in honor of Isabel Aretz, composer and ethnomusicologist.
 
 * Architecture: `docs/architecture.md`
 * Decisions: `docs/adr/`
 * Specifications: `docs/specs/`
 * Domain glossary: `docs/glossary.md`
+* Theoretical foundation: `docs/theory/`
 * Process journal: `docs/journal/`
 
 ## Language
 
-Everything in English: code, identifiers, comments, docstrings, commit messages, PR descriptions, documentation, specs, ADRs and the journal.
+Everything in English: code, identifiers, comments, docstrings, commit messages, PR descriptions, documentation, specs, ADRs and the journal. The only exception is reference material kept in its original language under `docs/theory/sources/`, always alongside an English version.
 
 ## Commands
 
@@ -64,7 +65,7 @@ The package lives in `src/aretz_texture/` (ADR 0002). Packages and dependency di
 ### Types and data
 * Every function fully annotated, arguments and return, with modern builtin types (`list[int]`, `X | None`).
 * Data models with pydantic, immutable (`frozen=True`).
-* `Any` is forbidden except at the boundary with music21, encapsulated in `ingest/`.
+* `Any` is forbidden except at the boundary with music21, encapsulated in `ingest/` and `render/` (ADR 0003).
 
 ### Validation and errors
 * Validate at the edges: ingestion, configuration and, later, the API. Inside the core, trust the types and do not revalidate.
@@ -118,6 +119,7 @@ Review the diff against the corresponding spec and against these rules.
 * New logic without tests, or tests that verify several concepts at once.
 * Use of `async` outside the API.
 * Changes outside the scope of the spec.
+* Musical decisions that contradict the textural model in `docs/theory/` without an ADR that justifies them.
 * Code, comments or documentation not written in English.
 * Writing errors in documentation.
 
