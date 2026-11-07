@@ -95,6 +95,7 @@ markers = [
 
 [tool.importlinter]
 root_package = "aretz_texture"
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "core imports nothing from the project"
@@ -144,3 +145,16 @@ forbidden_modules = [
     "aretz_texture.voicing",
     "aretz_texture.eval",
 ]
+
+[[tool.importlinter.contracts]]
+name = "music21 only at the boundary"
+type = "forbidden"
+source_modules = [
+    "aretz_texture.core",
+    "aretz_texture.analysis",
+    "aretz_texture.voicing",
+    "aretz_texture.eval",
+]
+forbidden_modules = ["music21"]
+# eval reaches music21 through ingest and render, which is intended (ADR 0003).
+allow_indirect_imports = true
