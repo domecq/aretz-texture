@@ -5,10 +5,10 @@
 from fractions import Fraction
 from pathlib import Path
 
-from music21 import clef, instrument, meter, note, pitch, stream
+from music21 import chord, clef, expressions, instrument, key, meter, note, pitch, stream, tie
 
-from aretz_texture.core.notation import NoteEvent
-from aretz_texture.core.score import Bar, Part, Score
+from aretz_texture.core.notation import EventPitch, NoteEvent
+from aretz_texture.core.score import Bar, Part, Score, TimeSignatureChange
 
 
 def write_full_score(score: Score, output_path: Path) -> None:
@@ -47,6 +47,10 @@ def _build_measure(score: Score, part: Part, bar: Bar) -> stream.Measure:
     for change in score.time_signatures:
         if change.onset == bar.onset:
             measure.insert(0, meter.TimeSignature(f"{change.numerator}/{change.denominator}"))
+    for key_change in part.key_signatures:
+        if bar.onset <= key_change.onset < bar.onset + bar.duration:
+            measure.insert(key_change.onset - bar.onset, key.KeySignature(key_change.sharps))
+    _set_padding(measure, score, bar)
     events = [
         event
         for event in part.voices[0].events
@@ -61,6 +65,22 @@ def _build_measure(score: Score, part: Part, bar: Bar) -> stream.Measure:
     return measure
 
 
+def _set_padding(measure: stream.Measure, score: Score, bar: Bar) -> None:
+    meter_in_force = _time_signature_in_force(score, bar)
+    missing = meter_in_force.bar_duration() - bar.duration
+    if missing <= 0:
+        return
+    # Without padding music21 writes an invisible rest to fill the short bar.
+    if bar.onset == 0:
+        measure.paddingLeft = missing
+    else:
+        measure.paddingRight = missing
+
+
+def _time_signature_in_force(score: Score, bar: Bar) -> TimeSignatureChange:
+    return [change for change in score.time_signatures if change.onset <= bar.onset][-1]
+
+
 def _insert_rest(
     container: stream.Measure | stream.Voice, offset: Fraction, length: Fraction
 ) -> None:
@@ -68,11 +88,24 @@ def _insert_rest(
         container.insert(offset, note.Rest(quarterLength=length))
 
 
-def _build_note(event: NoteEvent) -> note.Note:
-    spelled = event.pitches[0].pitch
+def _build_note(event: NoteEvent) -> note.GeneralNote:
+    notes = [_build_pitch(event_pitch, event.duration) for event_pitch in event.pitches]
+    element = notes[0] if len(notes) == 1 else chord.Chord(notes)
+    if len(notes) > 1:
+        element.quarterLength = event.duration
+    if event.fermata:
+        element.expressions.append(expressions.Fermata())
+    return element
+
+
+def _build_pitch(event_pitch: EventPitch, duration: Fraction) -> note.Note:
+    spelled = event_pitch.pitch
     music21_pitch = pitch.Pitch()
     music21_pitch.step = spelled.step
     music21_pitch.octave = spelled.octave
     if spelled.alter != 0:
         music21_pitch.accidental = pitch.Accidental(spelled.alter)
-    return note.Note(music21_pitch, quarterLength=event.duration)
+    music21_note = note.Note(music21_pitch, quarterLength=duration)
+    if event_pitch.tie is not None:
+        music21_note.tie = tie.Tie(event_pitch.tie.value)
+    return music21_note
