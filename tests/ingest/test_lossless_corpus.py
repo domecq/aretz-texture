@@ -26,7 +26,7 @@ def test_every_accepted_chorale_keeps_every_pitch_of_every_part() -> None:
     accepted = 0
     rejected: dict[str, str] = {}
 
-    # The listing names 20 files twice; each distinct file is checked once.
+    # The listing names 21 files twice; each distinct file is checked once.
     for identifier in dict.fromkeys(list_corpus_chorales()):
         source = corpus.parse(identifier)
         assert isinstance(source, stream.Score), identifier

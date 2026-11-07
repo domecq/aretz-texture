@@ -186,6 +186,8 @@ def _voice_containers(
         if not isinstance(element, note.Rest):
             message = f"bar {measure.number} has a note outside its voices"
             raise UnsupportedScoreError(message)
+        # Rests outside the voices are not traversed, so their fermatas are checked here.
+        _reject_fermata_on_rest(element)
     return list(enumerate(measure.voices, start=1))
 
 

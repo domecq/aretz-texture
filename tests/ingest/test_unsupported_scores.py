@@ -109,6 +109,16 @@ def test_fermata_on_a_rest_is_unsupported_until_spec_001d() -> None:
         convert_score(score_of(part_of([bar_of([rest])])))
 
 
+def test_fermata_on_a_rest_outside_the_voices_of_a_bar_is_unsupported() -> None:
+    measure = voices_bar([[whole_note("E4")]])
+    rest = note.Rest(quarterLength=4.0)
+    rest.expressions.append(expressions.Fermata())
+    measure.insert(0, rest)
+
+    with pytest.raises(UnsupportedScoreError, match="fermata"):
+        convert_score(score_of(part_of([measure])))
+
+
 def test_overlapping_notes_in_a_bar_without_voices_are_unsupported() -> None:
     measure = stream.Measure(number=1)
     measure.insert(0, note.Note("C4", quarterLength=4.0))
@@ -141,3 +151,22 @@ def test_file_that_is_not_musicxml_is_unparseable(tmp_path: Path) -> None:
 
     with pytest.raises(UnparseableScoreError):
         read_score(str(path))
+
+
+def test_midi_file_is_unparseable(tmp_path: Path) -> None:
+    path = tmp_path / "chorale.mid"
+    score_of(part_of([bar_of([whole_note()])])).write("midi", fp=path)
+
+    with pytest.raises(UnparseableScoreError, match="MusicXML"):
+        read_score(str(path))
+
+
+@pytest.mark.parametrize("suffix", [".musicxml", ".xml", ".mxl"])
+def test_musicxml_file_is_read(tmp_path: Path, suffix: str) -> None:
+    path = tmp_path / f"chorale{suffix}"
+    file_format = "mxl" if suffix == ".mxl" else "musicxml"
+    score_of(part_of([bar_of([whole_note("G4")])])).write(file_format, fp=path)
+
+    ingested = read_score(str(path))
+
+    assert len(ingested.score.parts) == 1
