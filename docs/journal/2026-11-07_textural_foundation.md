@@ -29,6 +29,15 @@ Write the first specification (issue #7): read a Bach chorale and write it back 
 * Spec 001 was paused (its pull request back to draft) and rewritten on that basis: lossless ingestion of any number of parts, piano rendering only for four part scores until the textural analysis exists. The questions about which part to drop disappeared instead of being answered.
 * Bibliographic data of the 1996 and 2000 articles were checked again against their repositories.
 
+### First implementation: 001a
+
+* Nico approved spec 001 and ADRs 0003 and 0004 by merging their pull request.
+* The `explorer` subagent is read only and has no shell, so it cannot run music21, which is exactly what most of the spec asked to verify. The main session ran a script over the corpus instead and handed the facts to the `implementer`. Whether the explorer should be allowed to run Python without writing to the repository is an open process question.
+* The `implementer` delivered the core model and lossless ingestion with 129 tests; CI passed on the first push. Every distinct corpus chorale keeps every pitch of every part, except the two with grace notes, which are rejected as the spec says until 001d.
+* It reported, unprompted, that it wrote the ingestion code before its tests, so that part was not test first. No check can detect the order in which tests and code were written; the rule depends on the agent's discipline and on its honesty in reporting.
+* It also found that the corpus iterator lists 21 chorales twice: the corpus has 350 distinct chorales, not 371. The survey in the spec had counted the repeated entries and was corrected.
+* Nico decided three points from the review: relaxed type rules for tests through a pyright execution environment instead of comments in each file, ascending step order for enharmonic pitches in a divided event, and evaluation over the 350 distinct chorales.
+
 ## Open items
 
 * Approve ADR 0004 and the rewritten spec 001 (gate 1, by merging their pull request).
@@ -39,4 +48,5 @@ Write the first specification (issue #7): read a Bach chorale and write it back 
 
 * The most important decision of the day did not come from the agents. They answered each question competently, but only the musician noticed that the questions themselves lacked a frame. Agents optimize locally; a domain expert decides what the whole should mean.
 * A theory chosen early is cheaper than a theory retrofitted: the switch cost one spec rewrite, before any analysis code existed.
+* An agent that reports its own deviations is more valuable than one that hides them. The test first rule was broken silently as far as the tooling could tell; only the report made it visible.
 * Nico plans to show the finished work to Pablo Fessel. The project may open a line of academic research alongside the tool, which is one more reason to keep the attribution precise: the docs separate what Fessel wrote from the project's own didactic adaptation of it.
