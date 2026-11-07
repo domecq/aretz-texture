@@ -7,7 +7,9 @@ from pathlib import Path
 from music21 import converter, corpus, stream
 
 from aretz_texture.core.errors import UnparseableScoreError
-from aretz_texture.core.score import IngestedScore
+from aretz_texture.core.grand_staff import GrandStaffLayout
+from aretz_texture.core.score import IngestedScore, Score
+from aretz_texture.ingest.grand_staff_reader import convert_grand_staff
 from aretz_texture.ingest.music21_conversion import convert_score
 
 
@@ -25,11 +27,32 @@ def read_score(source: str) -> IngestedScore:
         UnparseableScoreError: The source is missing, is not MusicXML or is not a score.
         UnsupportedScoreError: The score parses but the core model cannot represent it.
     """
+    return convert_score(_parse_score(source))
+
+
+def read_grand_staff_file(path: Path, layout: GrandStaffLayout) -> Score:
+    """Read a piano file written by `write_piano_score` back into the core model.
+
+    Args:
+        path: The MusicXML file.
+        layout: Where each part of the original score was written.
+
+    Returns:
+        A score with one part per placement of the layout, without part or instrument names.
+
+    Raises:
+        UnparseableScoreError: The file is missing, is not MusicXML or is not a score.
+        UnsupportedScoreError: The file is not a grand staff the model can represent.
+    """
+    return convert_grand_staff(_parse_score(str(path)), layout)
+
+
+def _parse_score(source: str) -> stream.Score:
     parsed = _parse(source)
     if not isinstance(parsed, stream.Score):
         message = f"{source!r} is not a score"
         raise UnparseableScoreError(message)
-    return convert_score(parsed)
+    return parsed
 
 
 # Uncompressed and compressed MusicXML. Other formats music21 can read, such as MIDI,
