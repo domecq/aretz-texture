@@ -1,13 +1,16 @@
 """Criteria 15 and 16: the full score writer, one staff per part."""
 
+from fractions import Fraction
 from pathlib import Path
 
+import pytest
 from music21 import note, stream
-from tests.core_builders import event, part_of, score_of
+from tests.core_builders import FOUR_FOUR, event, part_of, score_of
 from tests.music21_builders import parse_score
 
+from aretz_texture.core.errors import UnsupportedScoreError
 from aretz_texture.core.notation import TieType
-from aretz_texture.core.score import Score
+from aretz_texture.core.score import KeySignatureChange, Score, TimeSignatureChange
 from aretz_texture.ingest.sources import read_score
 from aretz_texture.render.full_score import write_full_score
 
@@ -122,3 +125,58 @@ def test_a_notated_voice_that_is_silent_in_a_bar_is_a_whole_bar_rest(tmp_path: P
     silent_voice = measures[1].voices[0]
     assert [(rest.offset, rest.quarterLength) for rest in silent_voice.notesAndRests] == [(0, 4)]
     assert all(isinstance(element, note.Rest) for element in silent_voice.notesAndRests)
+
+
+def key_change(onset: int, sharps: int) -> KeySignatureChange:
+    return KeySignatureChange(onset=Fraction(onset), sharps=sharps)
+
+
+def round_trip_built(score: Score, path: Path) -> Score:
+    write_full_score(score, path)
+    return read_score(str(path)).score
+
+
+def test_a_key_signature_change_in_the_middle_of_a_bar_keeps_its_onset(tmp_path: Path) -> None:
+    keys = [key_change(0, 0), key_change(6, 2)]
+    score = score_of(
+        part_of([event(0, 2), event(2, 2), event(4, 2), event(6, 2)], key_signatures=keys)
+    )
+
+    assert round_trip_built(score, tmp_path / "key.musicxml") == score
+
+
+def test_a_key_signature_change_inside_a_rest_keeps_its_onset(tmp_path: Path) -> None:
+    keys = [key_change(0, 0), key_change(6, -1)]
+    score = score_of(part_of([event(0, 4)], key_signatures=keys))
+
+    assert round_trip_built(score, tmp_path / "key.musicxml") == score
+
+
+def test_a_key_signature_change_in_the_middle_of_a_bar_with_voices_keeps_its_onset(
+    tmp_path: Path,
+) -> None:
+    keys = [key_change(0, 0), key_change(6, 3)]
+    upper = [event(0, 4), event(4, 2), event(6, 2)]
+    lower = [event(0, 4), event(4, 4, "E4")]
+    score = score_of(part_of(upper, lower, key_signatures=keys))
+
+    assert round_trip_built(score, tmp_path / "key.musicxml") == score
+
+
+def test_a_key_signature_change_inside_a_note_of_every_voice_is_refused(tmp_path: Path) -> None:
+    keys = [key_change(0, 0), key_change(5, 2)]
+    score = score_of(part_of([event(4, 4)], key_signatures=keys))
+
+    with pytest.raises(UnsupportedScoreError, match="inside a note"):
+        write_full_score(score, tmp_path / "key.musicxml")
+
+
+def test_a_time_signature_change_on_a_bar_line_survives(tmp_path: Path) -> None:
+    three_four = TimeSignatureChange(onset=Fraction(8), numerator=3, denominator=4)
+    score = score_of(
+        part_of([event(0, 4), event(4, 4), event(8, 3)]),
+        bar_durations=(4, 4, 3),
+        time_signatures=(FOUR_FOUR, three_four),
+    )
+
+    assert round_trip_built(score, tmp_path / "meter.musicxml") == score
