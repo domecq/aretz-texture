@@ -27,4 +27,4 @@ Each role is a subagent in `.claude/agents/`, with its model and tools fixed the
 `.claude/settings.json` enables layers 1 and 2 of the quality checks (docs/agent-pipeline.md, section 10):
 
 * After every edit, Python files are formatted and linted; problems ruff cannot fix come back to you.
-* Before git commands, commits and pushes with `--no-verify`, commits without the pre-commit hook installed and pushes to `main` are blocked. If a commit is blocked because the hook is missing, run `uv run pre-commit install`.
+* Before git commands, anything that skips git hooks (`--no-verify`, `-n`, the pre-commit `SKIP` variable, `core.hooksPath`), commits without the pre-commit hook installed and pushes to `main` are blocked. If a commit is blocked because the hook is missing, run `uv run pre-commit install`.
