@@ -84,26 +84,32 @@ All models are pydantic `BaseModel` with `model_config = ConfigDict(frozen=True)
 ```python
 StepName = Literal["C", "D", "E", "F", "G", "A", "B"]
 
+
 class SpelledPitch(BaseModel):
     step: StepName
-    alter: int          # semitones: -2 double flat, -1 flat, 0 natural, 1 sharp, 2 double sharp
-    octave: int         # scientific pitch notation, middle C is C4
-    def pitch_class(self) -> int: ...   # 0 to 11, C is 0; enharmonic spellings share it
+    alter: int  # semitones: -2 double flat, -1 flat, 0 natural, 1 sharp, 2 double sharp
+    octave: int  # scientific pitch notation, middle C is C4
+
+    def pitch_class(self) -> int: ...  # 0 to 11, C is 0; enharmonic spellings share it
+
 
 class TieType(StrEnum):
     START = "start"
     CONTINUE = "continue"
     STOP = "stop"
 
+
 class EventPitch(BaseModel):
     pitch: SpelledPitch
-    tie: TieType | None # None when this pitch is not tied
+    tie: TieType | None  # None when this pitch is not tied
+
 
 class NoteEvent(BaseModel):
-    onset: Fraction     # quarter lengths from the start of the first bar; >= 0
+    onset: Fraction  # quarter lengths from the start of the first bar; >= 0
     duration: Fraction  # quarter lengths; > 0
-    pitches: tuple[EventPitch, ...]   # one pitch, or several in a divided event; highest first
+    pitches: tuple[EventPitch, ...]  # one pitch, or several in a divided event; highest first
     fermata: bool
+
 
 class VoiceRole(StrEnum):
     SOPRANO = "soprano"
@@ -111,28 +117,33 @@ class VoiceRole(StrEnum):
     TENOR = "tenor"
     BASS = "bass"
 
+
 class Voice(BaseModel):
     role: VoiceRole
-    events: tuple[NoteEvent, ...]   # sorted by onset, never overlapping
+    events: tuple[NoteEvent, ...]  # sorted by onset, never overlapping
+
 
 class Bar(BaseModel):
-    number: int          # the bar number shown in the score; a pickup bar is usually 0
-    onset: Fraction      # quarter lengths
-    duration: Fraction   # actual length of the bar; shorter than the time signature in a pickup bar
+    number: int  # the bar number shown in the score; a pickup bar is usually 0
+    onset: Fraction  # quarter lengths
+    duration: Fraction  # actual length of the bar; shorter than the time signature in a pickup bar
+
 
 class KeySignatureChange(BaseModel):
     onset: Fraction
-    sharps: int          # negative for flats
+    sharps: int  # negative for flats
+
 
 class TimeSignatureChange(BaseModel):
     onset: Fraction
     numerator: int
     denominator: int
 
+
 class FourVoiceScore(BaseModel):
-    bars: tuple[Bar, ...]                              # contiguous, starting at onset 0
-    key_signatures: tuple[KeySignatureChange, ...]     # first one at onset 0
-    time_signatures: tuple[TimeSignatureChange, ...]   # first one at onset 0
+    bars: tuple[Bar, ...]  # contiguous, starting at onset 0
+    key_signatures: tuple[KeySignatureChange, ...]  # first one at onset 0
+    time_signatures: tuple[TimeSignatureChange, ...]  # first one at onset 0
     soprano: Voice
     alto: Voice
     tenor: Voice
@@ -140,7 +151,7 @@ class FourVoiceScore(BaseModel):
 
     def voice(self, role: VoiceRole) -> Voice: ...
     def voices(self) -> tuple[Voice, Voice, Voice, Voice]: ...  # soprano, alto, tenor, bass
-    def pickup_duration(self) -> Fraction: ...   # 0 when the first bar is complete
+    def pickup_duration(self) -> Fraction: ...  # 0 when the first bar is complete
 ```
 
 Decisions in the model:
@@ -158,16 +169,20 @@ Decisions in the model:
 
 ```python
 class Staff(StrEnum):
-    UPPER = "upper"   # right hand, treble clef
-    LOWER = "lower"   # left hand, bass clef
+    UPPER = "upper"  # right hand, treble clef
+    LOWER = "lower"  # left hand, bass clef
+
 
 class StaffVoice(BaseModel):
     staff: Staff
-    voice_number: int   # 1 is the upper voice of the staff (stems up), 2 the lower (stems down)
+    voice_number: int  # 1 is the upper voice of the staff (stems up), 2 the lower (stems down)
+
 
 class GrandStaffLayout(BaseModel):
     placements: tuple[tuple[VoiceRole, StaffVoice], ...]
+
     def placement(self, role: VoiceRole) -> StaffVoice: ...
+
 
 PIANO_LAYOUT: GrandStaffLayout  # soprano UPPER 1, alto UPPER 2, tenor LOWER 1, bass LOWER 2
 ```
@@ -178,29 +193,36 @@ The layout lives in `core/` because both the renderer (to write) and the grand s
 
 ```python
 class OmissionReason(StrEnum):
-    EXTRA_PART = "extra_part"                   # the part was not chosen as one of the four voices
-    EXTRA_VOICE_IN_PART = "extra_voice_in_part" # a second voice of a chosen part, with its own rhythm
-    DUPLICATE_PITCH = "duplicate_pitch"         # the same spelled pitch twice in one divided event
+    EXTRA_PART = "extra_part"  # the part was not chosen as one of the four voices
+    EXTRA_VOICE_IN_PART = (
+        "extra_voice_in_part"  # a second voice of a chosen part, with its own rhythm
+    )
+    DUPLICATE_PITCH = "duplicate_pitch"  # the same spelled pitch twice in one divided event
     GRACE_NOTE = "grace_note"
     FERMATA_ON_REST = "fermata_on_rest"
 
+
 class Omission(BaseModel):
     reason: OmissionReason
-    part_name: str          # as written in the source; empty when the part has no name
-    part_number: int        # 1 based position of the part in the score, top to bottom
+    part_name: str  # as written in the source; empty when the part has no name
+    part_number: int  # 1 based position of the part in the score, top to bottom
     bar_number: int
-    beat: Fraction          # music21 beat of the element, 1 based, as a musician counts it
+    beat: Fraction  # music21 beat of the element, 1 based, as a musician counts it
     onset: Fraction
-    duration: Fraction      # 0 for grace notes
-    pitch: SpelledPitch | None   # None for a fermata on a rest
-    removes_pitch_class: bool    # see section 3.5, rule 6
+    duration: Fraction  # 0 for grace notes
+    pitch: SpelledPitch | None  # None for a fermata on a rest
+    removes_pitch_class: bool  # see section 3.5, rule 6
+
 
 class IngestedScore(BaseModel):
     score: FourVoiceScore
-    omissions: tuple[Omission, ...]   # sorted by onset, then part number
-    has_lyrics: bool                  # the source had lyrics, which this spec ignores
+    omissions: tuple[Omission, ...]  # sorted by onset, then part number
+    has_lyrics: bool  # the source had lyrics, which this spec ignores
 
-def removes_pitch_class(pitch: SpelledPitch, onset: Fraction, duration: Fraction, score: FourVoiceScore) -> bool: ...
+
+def removes_pitch_class(
+    pitch: SpelledPitch, onset: Fraction, duration: Fraction, score: FourVoiceScore
+) -> bool: ...
 ```
 
 `removes_pitch_class` is pure and lives in `core/` so that it can be tested without music21. In 001a, `IngestedScore` already exists, with `omissions` always empty.
@@ -208,13 +230,23 @@ def removes_pitch_class(pitch: SpelledPitch, onset: Fraction, duration: Fraction
 ### 3.3 Domain exceptions (`core/errors.py`)
 
 ```python
-class AretzTextureError(Exception): ...                # base of every domain error
-class UnparseableScoreError(AretzTextureError): ...    # file missing, not MusicXML, corpus id not found
-class UnsupportedScoreError(AretzTextureError): ...    # parses, but cannot be mapped to the model
+class AretzTextureError(Exception): ...  # base of every domain error
+
+
+class UnparseableScoreError(
+    AretzTextureError
+): ...  # file missing, not MusicXML, corpus id not found
+
+
+class UnsupportedScoreError(AretzTextureError): ...  # parses, but cannot be mapped to the model
+
+
 class PartCountError(UnsupportedScoreError):
-    part_count: int                                    # fewer than four parts
+    part_count: int  # fewer than four parts
+
+
 class AmbiguousVoiceMappingError(UnsupportedScoreError):
-    part_names: tuple[str, ...]                        # more than four parts, names do not decide
+    part_names: tuple[str, ...]  # more than four parts, names do not decide
 ```
 
 `UnsupportedScoreError` is kept only for what truly cannot be mapped: fewer than four parts, more than four parts without the names to choose them, microtonal accidentals, unpitched notes, `"let-ring"` ties, and parts whose bars do not line up. `AmbiguousHarmonyError`, mentioned in `AGENTS.md`, is not created here; it belongs to the first analysis spec.
@@ -269,7 +301,9 @@ Rule 4 is the place where a musical choice is made: when two voices in one part 
 Boundary module (ADR 0003). Public interface:
 
 ```python
-def write_piano_score(score: FourVoiceScore, output_path: Path, layout: GrandStaffLayout = PIANO_LAYOUT) -> None: ...
+def write_piano_score(
+    score: FourVoiceScore, output_path: Path, layout: GrandStaffLayout = PIANO_LAYOUT
+) -> None: ...
 ```
 
 Behavior, through private helpers:
@@ -315,32 +349,40 @@ aretz-texture = "aretz_texture.cli:main"
 
 ```python
 class DifferenceKind(StrEnum):
-    MISSING_EVENT = "missing_event"      # in the original, not in the output
-    EXTRA_EVENT = "extra_event"          # in the output, not in the original
-    ALTERED_EVENT = "altered_event"      # same voice and onset, different duration, pitches, ties or fermata
+    MISSING_EVENT = "missing_event"  # in the original, not in the output
+    EXTRA_EVENT = "extra_event"  # in the output, not in the original
+    ALTERED_EVENT = (
+        "altered_event"  # same voice and onset, different duration, pitches, ties or fermata
+    )
     BARS = "bars"
     KEY_SIGNATURES = "key_signatures"
     TIME_SIGNATURES = "time_signatures"
 
+
 class RoundTripDifference(BaseModel):  # frozen
     kind: DifferenceKind
-    role: VoiceRole | None               # None for score level differences
-    onset: Fraction | None               # None for score level differences
-    description: str                     # human readable, includes the bar number when known
+    role: VoiceRole | None  # None for score level differences
+    onset: Fraction | None  # None for score level differences
+    description: str  # human readable, includes the bar number when known
+
 
 class ChoraleOutcome(StrEnum):
     IDENTICAL = "identical"
     DIFFERENT = "different"
-    UNSUPPORTED = "unsupported"          # ingestion raised UnsupportedScoreError
+    UNSUPPORTED = "unsupported"  # ingestion raised UnsupportedScoreError
 
-class ChoraleRoundTrip(BaseModel):     # frozen
+
+class ChoraleRoundTrip(BaseModel):  # frozen
     identifier: str
     outcome: ChoraleOutcome
     differences: tuple[RoundTripDifference, ...]
-    omissions: tuple[Omission, ...]      # from ingestion (001d); empty before
-    reason: str                          # message of the UnsupportedScoreError, empty otherwise
+    omissions: tuple[Omission, ...]  # from ingestion (001d); empty before
+    reason: str  # message of the UnsupportedScoreError, empty otherwise
 
-def compare_scores(original: FourVoiceScore, returned: FourVoiceScore) -> tuple[RoundTripDifference, ...]: ...
+
+def compare_scores(
+    original: FourVoiceScore, returned: FourVoiceScore
+) -> tuple[RoundTripDifference, ...]: ...
 def round_trip_chorale(identifier: str, work_directory: Path) -> ChoraleRoundTrip: ...
 ```
 
