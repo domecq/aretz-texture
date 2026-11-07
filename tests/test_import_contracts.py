@@ -58,3 +58,35 @@ def test_music21_import_at_the_boundary_is_allowed(project_copy: Path, subpackag
     result = run_lint_imports(project_copy)
 
     assert result.returncode == 0, result.stdout
+
+
+def test_nothing_imports_the_command_line(project_copy: Path) -> None:
+    offender = project_copy / "src" / "aretz_texture" / "render" / "offender.py"
+    offender.write_text(
+        '"""Imports the command line, which nothing may."""\n\nimport aretz_texture.cli\n'
+    )
+
+    result = run_lint_imports(project_copy)
+
+    assert result.returncode != 0
+    assert "nothing imports the command line BROKEN" in result.stdout
+
+
+def test_the_command_line_does_not_import_eval(project_copy: Path) -> None:
+    cli = project_copy / "src" / "aretz_texture" / "cli.py"
+    cli.write_text(cli.read_text() + "\nimport aretz_texture.eval\n")
+
+    result = run_lint_imports(project_copy)
+
+    assert result.returncode != 0
+    assert "the command line does not import eval BROKEN" in result.stdout
+
+
+def test_the_command_line_does_not_import_music21(project_copy: Path) -> None:
+    cli = project_copy / "src" / "aretz_texture" / "cli.py"
+    cli.write_text(cli.read_text() + "\nimport music21\n")
+
+    result = run_lint_imports(project_copy)
+
+    assert result.returncode != 0
+    assert "music21 only at the boundary BROKEN" in result.stdout

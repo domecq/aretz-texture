@@ -12,6 +12,8 @@ dependencies = [
     "pydantic>=2.10,<3",
 ]
 
+[project.scripts]
+aretz-texture = "aretz_texture.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.13.7,<0.14.0"]
@@ -166,7 +168,27 @@ source_modules = [
     "aretz_texture.analysis",
     "aretz_texture.voicing",
     "aretz_texture.eval",
+    "aretz_texture.cli",
 ]
 forbidden_modules = ["music21"]
-# eval reaches music21 through ingest and render, which is intended (ADR 0003).
+# eval and cli reach music21 through ingest and render, which is intended (ADR 0003).
 allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "nothing imports the command line"
+type = "forbidden"
+source_modules = [
+    "aretz_texture.core",
+    "aretz_texture.ingest",
+    "aretz_texture.analysis",
+    "aretz_texture.voicing",
+    "aretz_texture.render",
+    "aretz_texture.eval",
+]
+forbidden_modules = ["aretz_texture.cli"]
+
+[[tool.importlinter.contracts]]
+name = "the command line does not import eval"
+type = "forbidden"
+source_modules = ["aretz_texture.cli"]
+forbidden_modules = ["aretz_texture.eval"]
