@@ -86,6 +86,16 @@ typeCheckingMode = "strict"
 venvPath = "."
 venv = ".venv"
 
+# Tests build music21 objects to exercise the boundary, so they share its relaxed rules
+# for music21's partially typed API (ADR 0003). Source modules outside ingest/ and
+# render/ keep the full strict rules.
+[[tool.pyright.executionEnvironments]]
+root = "tests"
+extraPaths = ["src", "."]
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--strict-markers", "--import-mode=importlib"]

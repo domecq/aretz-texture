@@ -29,7 +29,7 @@ Since the issue was written, Nico decided that the analysis is based on Pablo Fe
 * Writing the core model as a MusicXML full score, one staff per part (`render/`), used by the evaluation.
 * Writing a score of exactly four parts as a MusicXML grand staff piano score (`render/`), and reading it back (`ingest/`).
 * Command line entry point `aretz-texture piano`.
-* Round trip comparison and the slow corpus evaluation over all 371 chorales (`eval/`).
+* Round trip comparison and the slow corpus evaluation over the 350 distinct corpus chorales (`eval/`).
 * Grace notes and fermatas on rests, in the last pull request (section 2, "Delivery").
 * Runtime dependencies music21 and pydantic, and the import contracts of ADR 0003.
 
@@ -164,7 +164,7 @@ Decisions in the model:
 * **Parts, not voices of a texture** (decision 3, ADR 0004). A score is a list of parts in score order, top to bottom, whatever their number. A part is identified by its position (part 1 is the top part); its name and instrument are metadata kept for display and, later, for the timbre factor. Nothing in the core says which part is a melody or a bass, and nothing reads part names to decide anything.
 * **Notated voices** (decision 4). A part holds one notated voice, or several when the source writes several voices on its staff (MusicXML `<voice>`, music21 `stream.Voice`). Each notated voice keeps its own rhythm. Notated voice number k of a part is, in every bar, the voice in position k of that bar; in a bar without voices every note belongs to notated voice 1, so a part that divides only in a few bars has notated voice 2 only there. A notated voice is a fact of the notation, not a line in Fessel's sense: whether it is heard as a line is a question for the analysis.
 * **A note event is a notated note, not a sounding note.** Two notes tied across a bar line are two events, the first with `TieType.START` and the second with `TieType.STOP`. Merging tied notes into one sounding note is analysis work for a later spec. This keeps the round trip exact.
-* **Divided events.** When a notated voice divides into a chord (for example a divided final chord in the bass), the chord is one `NoteEvent` with several `EventPitch` values, each with its own tie, as in MusicXML. Every pitch is kept, including a unison written as the same spelled pitch twice. `pitches` is never empty and is ordered from highest to lowest sounding pitch, with ties between enharmonic spellings broken by step order and repeated spelled pitches kept next to each other.
+* **Divided events.** When a notated voice divides into a chord (for example a divided final chord in the bass), the chord is one `NoteEvent` with several `EventPitch` values, each with its own tie, as in MusicXML. Every pitch is kept, including a unison written as the same spelled pitch twice. `pitches` is never empty and is ordered from highest to lowest sounding pitch, with ties between enharmonic spellings broken by ascending step order (F sharp 4 comes before G flat 4; decision 10) and repeated spelled pitches kept next to each other.
 * **Fermatas** (decision 1) are a property of the event (`fermata`), so a fermata on a divided event covers the whole chord, as in notation.
 * **Rests are not stored.** Silence in a notated voice is the time not covered by its events. The renderers write rests in the gaps. This makes "no lost or altered notes" a statement about events only. The exception is a rest that carries a fermata, kept from 001d on (below).
 * **Spelling is kept, enharmonics are different.** F sharp 4 and G flat 4 are different `SpelledPitch` values; they share a pitch class.
@@ -483,7 +483,7 @@ Evaluation, per chorale: `read_score`, then the full score route (`write_full_sc
 ### 001c: evaluation
 
 26. `compare_scores` returns no differences for a score compared with itself, and returns exactly one difference of the right kind for each single change: a removed event, an added event, a changed pitch spelling, duration, tie or fermata, a pitch added to or removed from a divided event, a changed part name or instrument name, an added part, an added notated voice, a changed bar, key signature or time signature.
-27. The slow corpus test runs `round_trip_chorale` on all 371 identifiers of `list_corpus_chorales()` and asserts that no chorale has outcome `DIFFERENT`.
+27. The slow corpus test runs `round_trip_chorale` on the 350 distinct identifiers of `list_corpus_chorales()` and asserts that no chorale has outcome `DIFFERENT`.
 28. The set of chorales with outcome `UNSUPPORTED` equals the list committed in `tests/eval/expected_unsupported_chorales.txt`, one identifier per line with its reason. A chorale that changes outcome in either direction fails the test, so a new rejection is a visible regression.
 29. Every supported chorale with exactly four parts takes the grand staff route, except those listed with their reason in `tests/eval/expected_grand_staff_skips.txt`; every supported chorale with more than four parts records the part count reason. Any change to the set fails the test.
 
@@ -550,7 +550,13 @@ Taken by Nico on November 7, 2026. Decisions 3, 4 and 6 replace the omission cri
 6. **Piano rendering** in this slice applies only to scores with exactly four parts, placed in score order: parts 1 and 2 on the right hand staff, parts 3 and 4 on the left hand staff, each keeping its own rhythm. Other scores are ingested and round tripped by the evaluation, and the `piano` command exits with a clear message. **No staff or instrument names** on the grand staff.
 7. **Cautionary accidentals** may be lost; acceptable.
 8. **Command name**: `aretz-texture piano SOURCE --output PATH` for this slice; `reduce` is reserved for when reduction exists.
-9. **The evaluation covers all 371 corpus chorales**, including the 20 with more than four parts, through the full score; four part chorales also go through the grand staff. Expected result: no chorale `DIFFERENT`, with a committed list of `UNSUPPORTED` chorales.
+9. **The evaluation covers the 350 distinct corpus chorales** (decision 11), including the 19 with more than four parts, through the full score; four part chorales also go through the grand staff. Expected result: no chorale `DIFFERENT`, with a committed list of `UNSUPPORTED` chorales.
+
+Taken by Nico on November 7, 2026, while reviewing 001a:
+
+10. **Enharmonic order in a divided event**: pitches that sound the same are ordered by ascending step, so F sharp 4 comes before G flat 4.
+11. **Distinct chorales**: the corpus iterator lists 21 chorales twice. Evaluation and corpus tests run over the 350 distinct chorales, each once.
+12. **Tests at the music21 boundary**: tests that build music21 objects share the relaxed pyright rules of the boundary through an execution environment for `tests/` in `pyproject.toml`, not through comments in each file. Source modules keep the rules of ADR 0003.
 
 ### Open questions
 
@@ -565,19 +571,19 @@ Taken by Nico on November 7, 2026. Decisions 3, 4 and 6 replace the omission cri
 
 ## 8. Corpus survey
 
-Checked against the music21 10.5.2 corpus on November 7, 2026. The corpus iterator yields 371 chorales.
+Checked against the music21 10.5.2 corpus on November 7, 2026. The corpus iterator yields 371 entries, but 21 of them repeat a chorale already listed (for example `bach/bwv112.5`), so the corpus has 350 distinct chorales. The figures below count distinct chorales; an earlier version of this section counted the repeated entries.
 
-* 351 chorales have exactly four parts. 20 have more, from 5 to 15 parts (the largest is `bach/bwv190.7`, with 15); none has fewer than four. Under this spec all 371 are ingested with every part, and only the 351 four part chorales can take the grand staff route.
-* Of those 20, 18 have parts named exactly Soprano, Alto, Tenor and Bass plus instrumental parts: trumpets, horns, oboes, strings, timpani, continuo or organ. Many of these instruments double a vocal part; whether a doubling joins the stratum of its voice is a question for the textural analysis, not for ingestion.
+* 331 chorales have exactly four parts. 19 have more, from 5 to 15 parts (the largest is `bach/bwv190.7`, with 15); none has fewer than four. Under this spec all 350 are ingested with every part, and only the 331 four part chorales can take the grand staff route.
+* Of those 19, 17 have parts named exactly Soprano, Alto, Tenor and Bass plus instrumental parts: trumpets, horns, oboes, strings, timpani, continuo or organ. Many of these instruments double a vocal part; whether a doubling joins the stratum of its voice is a question for the textural analysis, not for ingestion.
 * Two show why part names and part counts cannot decide the strata (ADR 0004):
   * `bach/bwv41.6` combines voice and instrument names in each part (`Soprano Oboe 1 Violin1`, `Alto Oboe 2 Viloin 2`, `Tenor Viola`, `Bass Continuo`; the misspelling is in the corpus): one part stands for a voice and its doubling instruments.
   * `bach/bwv27.6` is a genuine five voice chorale (`Soprano 1`, `Soprano 2`, `Alto`, `Tenor`, `Bass`).
 * Divided chords inside a part appear in one chorale (`bach/bwv248.9-1`), and several voices inside one part in one chorale (`bach/bwv248.23-2`). They are the concrete cases for divided events and notated voices.
-* Grace notes appear in two chorales (kept from 001d on), fermatas in 370 and lyrics in 360.
+* Grace notes appear in two chorales (kept from 001d on), fermatas in 349 and lyrics in 339.
 * BWV 66.6: the pickup bar is number 0 and its first note has `beat` 4.0; its fermatas report `type` `"upright"`.
 * Checked by the main session after the rewrite (music21 10.5.2, November 7, 2026):
-  * No part in the 371 chorales has a transposing instrument, so rejecting transposing parts (open question 2) affects no corpus chorale.
-  * Instrument names in the corpus are generic: in BWV 66.6, `part.getInstrument().instrumentName` is `"Instrument 1"` while `part.partName` is `"Soprano"`, and only 4 of 1548 parts have an instrument name equal to the part name. Until the timbre factor is designed, the part name is the more informative source of timbre in this corpus; ingestion keeps both as they are.
+  * No part in the 350 chorales has a transposing instrument, so rejecting transposing parts (open question 2) affects no corpus chorale.
+  * Instrument names in the corpus are generic: in BWV 66.6, `part.getInstrument().instrumentName` is `"Instrument 1"` while `part.partName` is `"Soprano"`, and only 4 of 1461 parts have an instrument name equal to the part name. Until the timbre factor is designed, the part name is the more informative source of timbre in this corpus; ingestion keeps both as they are.
   * `measure.voices` keeps the voice order: in BWV 248.23-2 the two voices of the oboe parts have ids `"1"` and `"2"`, in that order.
   * `bach/bwv190.7` has 15 parts.
   * No key signature or time signature in the corpus changes in the middle of a bar.

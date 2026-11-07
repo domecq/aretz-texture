@@ -1,4 +1,3 @@
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 # See ADR 0003: music21 is untyped; tests that build music21 objects follow the boundary rule.
 """Lossless count over the corpus: every pitch music21 reads is a pitch of the model."""
 

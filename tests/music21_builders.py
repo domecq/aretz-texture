@@ -1,4 +1,3 @@
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 # See ADR 0003: music21 is untyped; tests that build music21 objects follow the boundary rule.
 """Small music21 scores built for tests, in 4/4 with whole bars unless said otherwise."""
 
