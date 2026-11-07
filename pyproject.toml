@@ -1,7 +1,7 @@
 [project]
 name = "aretz-texture"
 version = "0.1.0"
-description = "Aretz Texture is an analysis tool that reduces a MusicXML score to its harmonic structure in four voices, with two rhythmic modes and several granularity levels."
+description = "Aretz Texture analyzes how the texture of a MusicXML score is organized, based on Pablo Fessel's model of textural strata, and reduces its harmonic structure to four voices, with two rhythmic modes and several granularity levels."
 readme = "README.md"
 authors = [
     { name = "Nicolás Ernesto Peralta", email = "nperalta@gmail.com" }

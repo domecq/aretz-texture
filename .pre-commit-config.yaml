@@ -9,6 +9,8 @@ repos:
       - id: no-commit-to-branch
         args: [--branch, main]
       - id: trailing-whitespace
+        # Source documents are kept verbatim; trailing spaces there are Markdown line breaks.
+        exclude: ^docs/theory/sources/
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-toml
