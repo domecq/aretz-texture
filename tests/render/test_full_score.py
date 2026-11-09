@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 from music21 import expressions, note, stream
-from tests.core_builders import FOUR_FOUR, event, part_of, score_of
+from tests.core_builders import FOUR_FOUR, divided_event, event, part_of, score_of
 from tests.music21_builders import parse_score
 
 from aretz_texture.core.errors import UnsupportedScoreError
@@ -216,3 +216,39 @@ def test_a_silent_pickup_of_four_quarters_in_three_two_time_keeps_its_length(
     score = score_of(part_of([event(4, 6)]), bar_durations=(4, 6), time_signatures=(three_two,))
 
     assert round_trip_built(score, tmp_path / "pickup.musicxml") == score
+
+
+@pytest.mark.parametrize(
+    ("numerator", "denominator", "bar_duration", "chord_duration"),
+    [(3, 2, 6, 2), (6, 4, 6, 2), (12, 4, 12, 4)],
+)
+def test_a_divided_event_followed_by_a_whole_or_breve_rest_keeps_the_bar_length(
+    tmp_path: Path, numerator: int, denominator: int, bar_duration: int, chord_duration: int
+) -> None:
+    # music21 counts chords as neither notes nor rests when it reads a measure, so a bar
+    # holding only chords and one undotted whole or breve rest is taken for a whole bar
+    # rest and stretched to the meter.
+    meter = TimeSignatureChange(onset=Fraction(0), numerator=numerator, denominator=denominator)
+    chord_event = divided_event(0, chord_duration, ("E4", None), ("C4", None))
+    score = score_of(
+        part_of([chord_event]), bar_durations=(bar_duration,), time_signatures=(meter,)
+    )
+
+    assert round_trip_built(score, tmp_path / "chord_and_rest.musicxml") == score
+
+
+def test_a_silent_voice_does_not_stretch_a_rest_of_another_voice(tmp_path: Path) -> None:
+    # music21 writes a rest that fills a bar inside a voice as a whole bar rest, and on
+    # reading it stretches the first rest of the measure to the meter, whichever voice it
+    # belongs to. Here that would be the whole rest music21 writes in voice 1 of bar 2.
+    three_two = TimeSignatureChange(onset=Fraction(0), numerator=3, denominator=2)
+    voice_one = [event(6, Fraction(1, 2))]
+    voice_two = [event(0, 6, pitch="G3")]  # silent in bar 2, where voices 1 and 3 sound
+    voice_three = [event(10, 1, pitch="E3")]
+    score = score_of(
+        part_of(voice_one, voice_two, voice_three),
+        bar_durations=(6, 6),
+        time_signatures=(three_two,),
+    )
+
+    assert round_trip_built(score, tmp_path / "silent_voice.musicxml") == score
