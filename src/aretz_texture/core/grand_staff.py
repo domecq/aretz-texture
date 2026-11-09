@@ -75,8 +75,8 @@ def piano_layout(score: Score) -> GrandStaffLayout:
     if part_count != PIANO_PART_COUNT:
         message = (
             f"aretz-texture piano renders only scores with exactly four parts; this score "
-            f"has {part_count}. Grand staff rendering of other textures needs the textural "
-            f"analysis of a later spec."
+            f"has {part_count} parts: {_part_names(score)}. Grand staff rendering of other "
+            f"textures needs the textural analysis of a later spec."
         )
         raise GrandStaffMappingError(message, part_count)
     for part_number, part in enumerate(score.parts, start=1):
@@ -90,3 +90,11 @@ def piano_layout(score: Score) -> GrandStaffLayout:
             message = f"part {part_number} has key signatures that differ from those of part 1"
             raise GrandStaffMappingError(message, part_count)
     return PIANO_LAYOUT
+
+
+def _part_names(score: Score) -> str:
+    """List the part names in score order, so a refusal shows which parts the score has."""
+    return ", ".join(
+        part.name if part.name is not None else f"part {part_number} (no name)"
+        for part_number, part in enumerate(score.parts, start=1)
+    )

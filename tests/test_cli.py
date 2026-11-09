@@ -89,7 +89,7 @@ def test_piano_command_refuses_a_five_part_chorale_without_writing_a_file(
 
     printed = capsys.readouterr()
     assert exit_code == 1
-    assert "this score has 5" in printed.err
+    assert "this score has 5 parts: Soprano 1, Soprano 2, Alto, Tenor, Bass." in printed.err
     assert "needs the textural analysis of a later spec" in printed.err
     assert printed.out == ""
     assert not output.exists()
