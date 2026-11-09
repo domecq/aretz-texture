@@ -2,8 +2,9 @@
 """Small music21 scores built for tests, in 4/4 with whole bars unless said otherwise."""
 
 from collections.abc import Sequence
+from pathlib import Path
 
-from music21 import key, meter, note, stream
+from music21 import converter, key, meter, note, stream
 
 BAR_LENGTH = 4.0
 
@@ -54,3 +55,10 @@ def score_of(*parts: stream.Part) -> stream.Score:
     for part in parts:
         score.insert(0, part)
     return score
+
+
+def parse_score(path: Path) -> stream.Score:
+    """Parse a MusicXML file written by the tool and check that music21 gives a score."""
+    parsed = converter.parse(path)
+    assert isinstance(parsed, stream.Score)
+    return parsed
