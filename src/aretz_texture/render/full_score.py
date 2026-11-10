@@ -12,7 +12,8 @@ from aretz_texture.core.errors import UnsupportedScoreError
 from aretz_texture.core.notation import EventPitch, NotatedVoice, NoteEvent
 from aretz_texture.core.score import Bar, KeySignatureChange, Part, Score, TimeSignatureChange
 
-WHOLE_REST = Fraction(4)
+# Durations of the undotted whole and breve rests, in quarter lengths.
+STRETCHABLE_REST_DURATIONS = frozenset({Fraction(4), Fraction(8)})
 
 
 def write_full_score(score: Score, output_path: Path) -> None:
@@ -57,10 +58,11 @@ def _build_measure(score: Score, part: Part, bar: Bar) -> stream.Measure:
     key_changes = [
         change for change in part.key_signatures if bar.onset <= change.onset < _bar_end(bar)
     ]
-    key_offsets = _rest_split_offsets(score, bar, key_changes)
+    key_offsets = {change.onset - bar.onset for change in key_changes} - {Fraction(0)}
+    meter_duration = _time_signature_in_force(score, bar).bar_duration()
     containers = _containers(measure, voice_count)
     for container, events in zip(containers, events_by_voice, strict=False):
-        _fill(container, events, bar, key_offsets)
+        _fill(container, events, bar, key_offsets, meter_duration)
     for change in key_changes:
         _insert_key_signature(measure, containers, events_by_voice, bar, change)
     return measure
@@ -92,13 +94,15 @@ def _fill(
     events: list[NoteEvent],
     bar: Bar,
     split_offsets: set[Fraction],
+    meter_duration: Fraction,
 ) -> None:
     cursor = Fraction(0)
     for event in events:
-        _insert_rests(container, cursor, event.onset - bar.onset, split_offsets)
+        gap_end = event.onset - bar.onset
+        _insert_rests(container, cursor, gap_end, split_offsets, meter_duration)
         container.insert(event.onset - bar.onset, _build_note(event))
         cursor = event.end() - bar.onset
-    _insert_rests(container, cursor, bar.duration, split_offsets)
+    _insert_rests(container, cursor, bar.duration, split_offsets, meter_duration)
 
 
 def _insert_rests(
@@ -106,13 +110,39 @@ def _insert_rests(
     start: Fraction,
     end: Fraction,
     split_offsets: set[Fraction],
+    meter_duration: Fraction,
 ) -> None:
     # A gap is cut where a key signature change falls inside it, so that the change can
     # be written at its exact onset: music21 writes it after the element that spans it.
     cuts = [start, *sorted(offset for offset in split_offsets if start < offset < end), end]
     for rest_start, rest_end in pairwise(cuts):
-        if rest_end > rest_start:
-            container.insert(rest_start, note.Rest(quarterLength=rest_end - rest_start))
+        for piece_start, piece_end in _unstretchable_pieces(rest_start, rest_end, meter_duration):
+            rest = note.Rest(quarterLength=piece_end - piece_start)
+            if isinstance(container, stream.Voice):
+                # music21 marks a rest that fills a bar as a whole bar rest; when it reads
+                # one inside a voice it stretches the first rest of the measure, which may
+                # belong to another voice. Rests in voices are written as ordinary rests.
+                rest.fullMeasure = False
+            container.insert(piece_start, rest)
+
+
+def _unstretchable_pieces(
+    start: Fraction, end: Fraction, meter_duration: Fraction
+) -> list[tuple[Fraction, Fraction]]:
+    """Split a rest that music21 would stretch to the whole bar when reading it back.
+
+    When music21 reads a measure that holds a single rest and no single notes (it does not
+    count chords), and that rest is an undotted whole or breve rest of another length than
+    the meter, it stretches the rest to the meter. Writing such a rest as two halves keeps
+    the bar length; the model stores no rests, so nothing else changes.
+    """
+    if end <= start:
+        return []
+    length = end - start
+    if length in STRETCHABLE_REST_DURATIONS and length != meter_duration:
+        middle = start + length / 2
+        return [(start, middle), (middle, end)]
+    return [(start, end)]
 
 
 def _insert_key_signature(
@@ -135,21 +165,6 @@ def _insert_key_signature(
             return
     message = f"the key signature change at onset {change.onset} falls inside a note of every voice"
     raise UnsupportedScoreError(message)
-
-
-def _rest_split_offsets(
-    score: Score, bar: Bar, key_changes: list[KeySignatureChange]
-) -> set[Fraction]:
-    offsets = {change.onset - bar.onset for change in key_changes} - {Fraction(0)}
-    # When music21 reads a measure whose only element is a whole rest of another length than
-    # the meter, it stretches the rest to the whole meter. A short bar of exactly four
-    # quarters in a longer meter, such as a pickup in 3/2, would grow, so its rest is cut.
-    if (
-        bar.duration == WHOLE_REST
-        and _time_signature_in_force(score, bar).bar_duration() != WHOLE_REST
-    ):
-        offsets.add(bar.duration / 2)
-    return offsets
 
 
 def _set_padding(measure: stream.Measure, score: Score, bar: Bar) -> None:
