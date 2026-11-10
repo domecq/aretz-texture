@@ -3,7 +3,6 @@
 """Writing a score of four parts as a MusicXML piano score on a grand staff."""
 
 from fractions import Fraction
-from itertools import pairwise
 from pathlib import Path
 
 from music21 import chord, clef, expressions, key, meter, note, pitch, stream, tie
@@ -13,14 +12,12 @@ from aretz_texture.core.errors import UnsupportedScoreError
 from aretz_texture.core.grand_staff import GrandStaffLayout, Staff
 from aretz_texture.core.notation import EventPitch, NoteEvent
 from aretz_texture.core.score import Bar, KeySignatureChange, Score, TimeSignatureChange
+from aretz_texture.render.rests import BarRests, insert_rests
 
 LOWER_VOICE_NUMBER = 2
 STAFF_VOICE_NUMBERS = (1, LOWER_VOICE_NUMBER)
 STEM_DIRECTIONS = {1: "up", LOWER_VOICE_NUMBER: "down"}
 CLEFS = {Staff.UPPER: clef.TrebleClef, Staff.LOWER: clef.BassClef}
-
-
-WHOLE_REST = Fraction(4)
 
 
 def write_piano_score(score: Score, layout: GrandStaffLayout, output_path: Path) -> None:
@@ -69,14 +66,17 @@ def _build_measure(
         for change in score.parts[0].key_signatures
         if bar.onset <= change.onset < _bar_end(bar)
     ]
-    key_offsets = _rest_split_offsets(score, bar, key_changes)
+    rests = BarRests(
+        meter_duration=_time_signature_in_force(score, bar).bar_duration(),
+        split_offsets=frozenset(change.onset - bar.onset for change in key_changes) - {Fraction(0)},
+    )
     voices: list[stream.Voice] = []
     events_by_voice: list[list[NoteEvent]] = []
     for voice_number in STAFF_VOICE_NUMBERS:
         events = _events_of_staff_voice(score, layout, staff, voice_number, bar)
         voice = stream.Voice()
         voice.id = str(voice_number)
-        _fill(voice, events, bar, key_offsets, voice_number)
+        _fill(voice, events, bar, rests, voice_number)
         measure.insert(0, voice)
         voices.append(voice)
         events_by_voice.append(events)
@@ -95,21 +95,6 @@ def _events_of_staff_voice(
                 event for event in part.voices[0].events if bar.onset <= event.onset < _bar_end(bar)
             ]
     return []
-
-
-def _rest_split_offsets(
-    score: Score, bar: Bar, key_changes: list[KeySignatureChange]
-) -> set[Fraction]:
-    offsets = {change.onset - bar.onset for change in key_changes} - {Fraction(0)}
-    # When music21 reads a measure whose only element is a whole rest of another length than
-    # the meter, it stretches the rest to the whole meter. A short bar of exactly four
-    # quarters in a longer meter, such as a pickup in 3/2, would grow, so its rest is cut.
-    if (
-        bar.duration == WHOLE_REST
-        and _time_signature_in_force(score, bar).bar_duration() != WHOLE_REST
-    ):
-        offsets.add(bar.duration / 2)
-    return offsets
 
 
 def _set_padding(measure: stream.Measure, score: Score, bar: Bar) -> None:
@@ -132,26 +117,15 @@ def _fill(
     voice: stream.Voice,
     events: list[NoteEvent],
     bar: Bar,
-    split_offsets: set[Fraction],
+    rests: BarRests,
     voice_number: int,
 ) -> None:
     cursor = Fraction(0)
     for event in events:
-        _insert_rests(voice, cursor, event.onset - bar.onset, split_offsets)
+        insert_rests(voice, cursor, event.onset - bar.onset, rests)
         voice.insert(event.onset - bar.onset, _build_note(event, voice_number))
         cursor = event.end() - bar.onset
-    _insert_rests(voice, cursor, bar.duration, split_offsets)
-
-
-def _insert_rests(
-    voice: stream.Voice, start: Fraction, end: Fraction, split_offsets: set[Fraction]
-) -> None:
-    # A gap is cut where a key signature change falls inside it, so that the change can
-    # be written at its exact onset: music21 writes it after the element that spans it.
-    cuts = [start, *sorted(offset for offset in split_offsets if start < offset < end), end]
-    for rest_start, rest_end in pairwise(cuts):
-        if rest_end > rest_start:
-            voice.insert(rest_start, note.Rest(quarterLength=rest_end - rest_start))
+    insert_rests(voice, cursor, bar.duration, rests)
 
 
 def _insert_key_signature(

@@ -9,7 +9,7 @@ from tests.core_builders import divided_event, event, part_of, score_of
 from aretz_texture.core.errors import UnparseableScoreError, UnsupportedScoreError
 from aretz_texture.core.grand_staff import PIANO_LAYOUT
 from aretz_texture.core.notation import TieType
-from aretz_texture.core.score import KeySignatureChange, Score
+from aretz_texture.core.score import KeySignatureChange, Score, TimeSignatureChange
 from aretz_texture.ingest.sources import read_grand_staff_file, read_score
 from aretz_texture.render.full_score import write_full_score
 from aretz_texture.render.piano_score import write_piano_score
@@ -80,6 +80,39 @@ def test_a_key_signature_change_in_the_middle_of_a_bar_survives_the_piano_round_
     returned = piano_round_trip(score, tmp_path / "piano.musicxml")
 
     assert returned == score
+
+
+def test_a_divided_event_and_a_whole_rest_keep_the_bar_length_on_the_grand_staff(
+    tmp_path: Path,
+) -> None:
+    # Same music21 behavior as in the full score: chords are not counted when it decides
+    # whether a measure is a whole bar rest. Each staff holds two divided events here.
+    three_two = TimeSignatureChange(onset=Fraction(0), numerator=3, denominator=2)
+    parts = [
+        part_of([divided_event(0, 2, (pitch, None), (lower, None))])
+        for pitch, lower in (("G5", "E5"), ("C5", "A4"), ("E4", "C4"), ("C3", "A2"))
+    ]
+    score = score_of(*parts, bar_durations=(6,), time_signatures=(three_two,))
+
+    assert piano_round_trip(score, tmp_path / "chords.musicxml") == without_part_metadata(score)
+
+
+def test_a_silent_part_does_not_stretch_a_rest_of_the_other_part_on_its_staff(
+    tmp_path: Path,
+) -> None:
+    # Part 2 is silent in bar 2, so its staff voice is a whole bar rest there; music21 would
+    # stretch the whole rest of part 1 on the same staff when it reads the file back.
+    three_two = TimeSignatureChange(onset=Fraction(0), numerator=3, denominator=2)
+    score = score_of(
+        part_of([event(0, 6, pitch="G4"), event(6, Fraction(1, 2), pitch="E5")]),
+        part_of([event(0, 6, pitch="C4")]),
+        part_of([event(0, 6, pitch="E3"), event(6, 6, pitch="E3")]),
+        part_of([event(0, 6, pitch="C3"), event(6, 6, pitch="C3")]),
+        bar_durations=(6, 6),
+        time_signatures=(three_two,),
+    )
+
+    assert piano_round_trip(score, tmp_path / "silent.musicxml") == without_part_metadata(score)
 
 
 def test_a_file_that_is_not_a_grand_staff_is_unsupported(tmp_path: Path) -> None:
