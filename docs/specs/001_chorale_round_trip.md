@@ -564,6 +564,10 @@ Taken by Nico on November 9, 2026, while reviewing 001b:
 14. **Refusal message of the piano command**: besides the part count, it lists the part names in score order, with `part N (no name)` for unnamed parts.
 15. **Key signature change in the middle of a bar while every notated voice holds a note across it**: music21 cannot write it, so the writers raise `UnsupportedScoreError`. No corpus chorale has the case; it stays an explicit error for now.
 
+Taken by Nico on November 10, 2026, after the manual check of 001b in Sibelius:
+
+16. **Courtesy accidentals on the grand staff**: when two parts share a staff, music21 may add a courtesy accidental that the source did not have. In BWV 66.6 the soprano's E4 in bar 4 gets a natural after the alto's E sharp 4 in bar 3, now on the same staff. This is kept: it is what a copyist would write in a piano reduction, and it helps the reader. Pitches are never affected.
+
 ### Open questions
 
 1. **Closed score input and notated voices on the grand staff.** A closed score (two voices on one staff, for example soprano and alto on the upper staff and tenor and bass on the lower) is now representable: two parts, each with two notated voices, or divided events when the source writes the voices as chords. This slice ingests it without loss and round trips it through the full score, but the `piano` command refuses it, because it has two parts, and likewise refuses a four part score where some part has several notated voices. Should a later spec, before the textural analysis exists, place notated voices directly on the grand staff (for example a closed score copied staff by staff, or up to four voices per staff with their stem directions)? Is it a priority, given that much MusicXML exported by students may look like this?
