@@ -2,7 +2,9 @@
 
 from fractions import Fraction
 
-from aretz_texture.core.notation import NoteEvent, TieType
+import pytest
+
+from aretz_texture.core.notation import EventPitch, NoteEvent, SpelledPitch, StepName, TieType
 from aretz_texture.core.score import Bar, Part, Score
 from aretz_texture.ingest.sources import read_score
 
@@ -178,3 +180,40 @@ def test_score_with_fifteen_parts_keeps_every_part_with_name_and_instrument() ->
     ]
     assert score.parts[-1].name == "Continuo"
     assert score.parts[-1].instrument_name == "Instrument 4"
+
+
+# Verified against music21 10.5.2: the soprano of these chorales holds the only grace notes of
+# the corpus, each an eighth with a slash, written before the note it ornaments.
+GRACE_NOTES_OF_THE_CORPUS = [
+    ("bach/bwv299", 37, "B", -1, 4),
+    ("bach/bwv299", 44, "E", -1, 5),
+    ("bach/bwv315", 41, "D", 0, 5),
+]
+
+
+@pytest.mark.parametrize(
+    ("identifier", "onset", "step", "alter", "octave"), GRACE_NOTES_OF_THE_CORPUS
+)
+def test_a_corpus_grace_note_is_read_with_its_onset_pitch_value_and_slash(
+    identifier: str, onset: int, step: StepName, alter: int, octave: int
+) -> None:
+    soprano = read_score(identifier).score.parts[0]
+
+    grace_notes = [grace for grace in soprano.voices[0].grace_notes if grace.onset == onset]
+
+    assert len(grace_notes) == 1
+    assert grace_notes[0].pitches == (
+        EventPitch(pitch=SpelledPitch(step=step, alter=alter, octave=octave), tie=None),
+    )
+    assert (grace_notes[0].notated_value, grace_notes[0].slash) == (Fraction(1, 2), True)
+
+
+@pytest.mark.parametrize(("identifier", "expected_count"), [("bach/bwv299", 2), ("bach/bwv315", 1)])
+def test_the_corpus_chorales_with_grace_notes_have_no_others(
+    identifier: str, expected_count: int
+) -> None:
+    score = read_score(identifier).score
+
+    counts = [len(voice.grace_notes) for part in score.parts for voice in part.voices]
+
+    assert sum(counts) == expected_count

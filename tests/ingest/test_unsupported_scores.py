@@ -92,23 +92,6 @@ def test_transposing_part_is_unsupported() -> None:
         convert_score(score_of(part))
 
 
-def test_grace_note_is_unsupported_until_spec_001d() -> None:
-    grace = note.Note("D4").getGrace()
-    assert grace is not None
-    measure = bar_of([grace, whole_note()])
-
-    with pytest.raises(UnsupportedScoreError, match="grace"):
-        convert_score(score_of(part_of([measure])))
-
-
-def test_fermata_on_a_rest_is_unsupported_until_spec_001d() -> None:
-    rest = note.Rest(quarterLength=4.0)
-    rest.expressions.append(expressions.Fermata())
-
-    with pytest.raises(UnsupportedScoreError, match="fermata"):
-        convert_score(score_of(part_of([bar_of([rest])])))
-
-
 def test_fermata_on_a_rest_outside_the_voices_of_a_bar_is_unsupported() -> None:
     measure = voices_bar([[whole_note("E4")]])
     rest = note.Rest(quarterLength=4.0)

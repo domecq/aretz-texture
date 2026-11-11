@@ -10,14 +10,16 @@ pitch of a divided event is kept. What the core model cannot represent raises
 from collections.abc import Iterable
 from fractions import Fraction
 
-from music21 import chord, expressions, key, meter, note, stream
+from music21 import chord, duration, expressions, key, meter, note, stream
 from pydantic import ValidationError
 
 from aretz_texture.core.errors import UnsupportedScoreError
 from aretz_texture.core.notation import (
     EventPitch,
+    GraceNote,
     NotatedVoice,
     NoteEvent,
+    RestFermata,
     SpelledPitch,
     TieType,
 )
@@ -170,15 +172,15 @@ def read_key_signatures(part: stream.Part) -> tuple[KeySignatureChange, ...]:
 
 
 def _read_notated_voices(part: stream.Part) -> tuple[NotatedVoice, ...]:
-    events_by_voice: dict[int, list[NoteEvent]] = {}
+    bars_by_voice: dict[int, list[NotatedVoice]] = {}
     for measure in part.getElementsByClass(stream.Measure):
         for voice_number, container in _voice_containers(measure):
-            events = read_events(container, to_fraction(measure.offset))
-            if events:
-                events_by_voice.setdefault(voice_number, []).extend(events)
-    voice_count = max(events_by_voice, default=1)
+            voice_bar = read_voice_bar(container, to_fraction(measure.offset))
+            if voice_bar.has_content():
+                bars_by_voice.setdefault(voice_number, []).append(voice_bar)
+    voice_count = max(bars_by_voice, default=1)
     return tuple(
-        NotatedVoice(events=tuple(events_by_voice.get(voice_number, ())))
+        join_voice_bars(bars_by_voice.get(voice_number, ()))
         for voice_number in range(1, voice_count + 1)
     )
 
@@ -192,57 +194,104 @@ def _voice_containers(
         if not isinstance(element, note.Rest):
             message = f"bar {measure.number} has a note outside its voices"
             raise UnsupportedScoreError(message)
-        # Rests outside the voices are not traversed, so their fermatas are checked here.
-        _reject_fermata_on_rest(element)
+        # A rest outside the voices cannot be given to a notated voice.
+        if _has_fermata(element.expressions):
+            message = f"bar {measure.number} has a fermata on a rest outside its voices"
+            raise UnsupportedScoreError(message)
     return list(enumerate(measure.voices, start=1))
 
 
-def read_events(
+def read_voice_bar(
     container: stream.Measure | stream.Voice, measure_onset: Fraction
-) -> list[NoteEvent]:
-    """Read the note events of a measure or voice, skipping rests."""
+) -> NotatedVoice:
+    """Read what one measure or voice holds: events, grace notes and fermatas on rests."""
     # A voice sits at offset 0 of its measure in practice; adding it keeps the onset exact anyway.
     is_voice = isinstance(container, stream.Voice)
     container_onset = measure_onset + (to_fraction(container.offset) if is_voice else 0)
     events: list[NoteEvent] = []
+    grace_notes: list[GraceNote] = []
+    rest_fermatas: list[RestFermata] = []
+    timed_onsets: set[Fraction] = set()
     for element in container.notesAndRests:
+        onset = container_onset + to_fraction(element.offset)
         if isinstance(element, note.Rest):
-            _reject_fermata_on_rest(element)
-            continue
-        events.append(_convert_element(element, container_onset))
-    return events
+            timed_onsets.add(onset)
+            if _has_fermata(element.expressions):
+                length = to_fraction(element.quarterLength)
+                rest_fermatas.append(RestFermata(onset=onset, duration=length))
+        elif isinstance(element.duration, duration.GraceDuration):
+            grace_notes.append(_convert_grace_note(element, element.duration, onset))
+        else:
+            timed_onsets.add(onset)
+            events.append(_convert_element(element, onset))
+    for grace_note in grace_notes:
+        if grace_note.onset not in timed_onsets:
+            message = f"a grace note at onset {grace_note.onset} has nothing after it in its bar"
+            raise UnsupportedScoreError(message)
+    return NotatedVoice(
+        events=tuple(events),
+        grace_notes=tuple(grace_notes),
+        rest_fermatas=tuple(rest_fermatas),
+    )
 
 
-def _reject_fermata_on_rest(rest: note.Rest) -> None:
-    if _has_fermata(rest.expressions):
-        message = "a fermata on a rest is not supported yet"
-        raise UnsupportedScoreError(message)
+def join_voice_bars(voice_bars: Iterable[NotatedVoice]) -> NotatedVoice:
+    """Join what the bars of one notated voice hold, in the order of the bars."""
+    bars = list(voice_bars)
+    return NotatedVoice(
+        events=tuple(event for bar in bars for event in bar.events),
+        grace_notes=tuple(grace_note for bar in bars for grace_note in bar.grace_notes),
+        rest_fermatas=tuple(rest for bar in bars for rest in bar.rest_fermatas),
+    )
 
 
-def _convert_element(element: note.GeneralNote, container_onset: Fraction) -> NoteEvent:
+def _sounding_notes(element: note.GeneralNote) -> list[note.Note]:
     if isinstance(element, note.Unpitched):
         message = "unpitched notes are not supported"
         raise UnsupportedScoreError(message)
-    if not isinstance(element, (note.Note, chord.Chord)):
-        message = f"unsupported element {type(element).__name__}"
-        raise UnsupportedScoreError(message)
-    if element.duration.isGrace:
-        message = "grace notes are not supported yet"
-        raise UnsupportedScoreError(message)
-    sounding_notes = element.notes if isinstance(element, chord.Chord) else [element]
-    pitches = sorted(
-        (_convert_pitch(sounding) for sounding in sounding_notes),
-        key=lambda event_pitch: event_pitch.pitch.highest_first_key(),
-    )
+    if isinstance(element, chord.Chord):
+        return list(element.notes)
+    if isinstance(element, note.Note):
+        return [element]
+    message = f"unsupported element {type(element).__name__}"
+    raise UnsupportedScoreError(message)
+
+
+def _convert_element(element: note.GeneralNote, onset: Fraction) -> NoteEvent:
+    sounding_notes = _sounding_notes(element)
     expressions_of_element = list(element.expressions)
     if isinstance(element, chord.Chord):
         expressions_of_element += [e for sounding in sounding_notes for e in sounding.expressions]
     return NoteEvent(
-        onset=container_onset + to_fraction(element.offset),
+        onset=onset,
         duration=to_fraction(element.duration.quarterLength),
-        pitches=tuple(pitches),
+        pitches=_read_pitches(sounding_notes),
         fermata=_has_fermata(expressions_of_element),
     )
+
+
+def _convert_grace_note(
+    element: note.GeneralNote, grace_duration: duration.GraceDuration, onset: Fraction
+) -> GraceNote:
+    sounding_notes = _sounding_notes(element)
+    if grace_duration.tuplets:
+        message = "a grace note with a tuplet is not supported"
+        raise UnsupportedScoreError(message)
+    symbol = duration.Duration(type=grace_duration.type, dots=grace_duration.dots)
+    return GraceNote(
+        onset=onset,
+        pitches=_read_pitches(sounding_notes),
+        notated_value=to_fraction(symbol.quarterLength),
+        slash=bool(grace_duration.slash),
+    )
+
+
+def _read_pitches(sounding_notes: list[note.Note]) -> tuple[EventPitch, ...]:
+    pitches = sorted(
+        (_convert_pitch(sounding) for sounding in sounding_notes),
+        key=lambda event_pitch: event_pitch.pitch.highest_first_key(),
+    )
+    return tuple(pitches)
 
 
 def _has_fermata(expression_list: Iterable[expressions.Expression]) -> bool:
@@ -283,10 +332,11 @@ def _has_lyrics(source: stream.Score) -> bool:
 
 __all__ = [
     "convert_score",
+    "join_voice_bars",
     "read_bars",
-    "read_events",
     "read_key_signatures",
     "read_time_signatures",
+    "read_voice_bar",
     "require_same_bars",
     "require_same_time_signatures",
     "to_fraction",

@@ -18,7 +18,9 @@ def pitches_read_by_music21(part: stream.Part) -> int:
 
 
 def pitches_in_model(part: Part) -> int:
-    return sum(len(event.pitches) for voice in part.voices for event in voice.events)
+    return sum(
+        len(item.pitches) for voice in part.voices for item in [*voice.events, *voice.grace_notes]
+    )
 
 
 @pytest.mark.slow
@@ -43,4 +45,4 @@ def test_every_accepted_chorale_keeps_every_pitch_of_every_part() -> None:
         assert all(read == kept for read, kept in counts), identifier
 
     assert accepted > 0
-    assert all("grace" in reason for reason in rejected.values()), rejected
+    assert rejected == {}

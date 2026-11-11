@@ -7,13 +7,13 @@ from pydantic import ValidationError
 
 from aretz_texture.core.errors import UnsupportedScoreError
 from aretz_texture.core.grand_staff import GrandStaffLayout, Staff
-from aretz_texture.core.notation import NotatedVoice
 from aretz_texture.core.score import Part, Score
 from aretz_texture.ingest.music21_conversion import (
+    join_voice_bars,
     read_bars,
-    read_events,
     read_key_signatures,
     read_time_signatures,
+    read_voice_bar,
     require_same_bars,
     require_same_time_signatures,
     to_fraction,
@@ -62,17 +62,17 @@ def _convert_staves(staves: dict[Staff, stream.Part], layout: GrandStaffLayout) 
 
 
 def _convert_staff_voice(staff: stream.Part, voice_number: int) -> Part:
-    events = []
+    voice_bars = []
     for measure in staff.getElementsByClass(stream.Measure):
         # Voices are identified by position, which music21 keeps from the file (spec 001, 3.5).
         voices = list(measure.voices)
         if len(voices) < voice_number:
             message = f"bar {measure.number} has no voice {voice_number} on its staff"
             raise UnsupportedScoreError(message)
-        events += read_events(voices[voice_number - 1], to_fraction(measure.offset))
+        voice_bars.append(read_voice_bar(voices[voice_number - 1], to_fraction(measure.offset)))
     return Part(
         name=None,
         instrument_name=None,
         key_signatures=read_key_signatures(staff),
-        voices=(NotatedVoice(events=tuple(events)),),
+        voices=(join_voice_bars(voice_bars),),
     )
