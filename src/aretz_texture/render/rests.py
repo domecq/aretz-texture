@@ -12,13 +12,19 @@ length of a bar on reading, and the rests written here avoid both:
 * It marks a rest that fills a bar as a whole bar rest; when it reads one inside a voice it
   stretches the first rest of the measure, which may belong to another voice. Rests inside
   voices are written as ordinary rests.
+
+A rest that carries a fermata must be read back with the stored onset and length, so it cannot
+be split as above. When music21 would stretch it, `require_fermata_rests_read_back_exactly`
+raises `UnsupportedScoreError`.
 """
 
 from dataclasses import dataclass, field
 from fractions import Fraction
 from itertools import pairwise
 
-from music21 import note, stream
+from music21 import expressions, note, stream
+
+from aretz_texture.core.errors import UnsupportedScoreError
 
 # Durations of the undotted whole and breve rests, in quarter lengths.
 STRETCHABLE_REST_DURATIONS = frozenset({Fraction(4), Fraction(8)})
@@ -71,3 +77,33 @@ def _unstretchable_pieces(
         middle = start + length / 2
         return [(start, middle), (middle, end)]
     return [(start, end)]
+
+
+def require_fermata_rests_read_back_exactly(
+    measure: stream.Measure, meter_duration: Fraction
+) -> None:
+    """Raise when music21 would stretch the fermata rest of a written measure on reading it.
+
+    music21 stretches the only rest of a measure to the whole bar when the measure has no other
+    rest and no single note (chords do not count), and the rest is an undotted whole or breve of
+    another length than the meter. A rest with a fermata cannot be split to avoid it.
+
+    Args:
+        measure: The measure, already filled with notes and rests.
+        meter_duration: Length of a full bar of the time signature in force, in quarter lengths.
+
+    Raises:
+        UnsupportedScoreError: The measure holds such a fermata rest.
+    """
+    rests = list(measure.recurse().getElementsByClass(note.Rest))
+    has_single_note = any(True for _ in measure.recurse().getElementsByClass(note.Note))
+    if len(rests) != 1 or has_single_note:
+        return
+    length = Fraction(rests[0].quarterLength)
+    carries_fermata = any(isinstance(e, expressions.Fermata) for e in rests[0].expressions)
+    if carries_fermata and length in STRETCHABLE_REST_DURATIONS and length != meter_duration:
+        message = (
+            f"in bar {measure.number} music21 would stretch the fermata rest of {length} "
+            f"quarter lengths to the {meter_duration} of the bar when reading it back"
+        )
+        raise UnsupportedScoreError(message)
