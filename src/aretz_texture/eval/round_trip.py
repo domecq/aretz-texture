@@ -1,5 +1,6 @@
 """Round trip evaluation: write a score, read it back and compare it with the original."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from fractions import Fraction
@@ -9,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 
 from aretz_texture.core.errors import GrandStaffMappingError, UnsupportedScoreError
 from aretz_texture.core.grand_staff import piano_layout
-from aretz_texture.core.notation import NotatedVoice, NoteEvent
+from aretz_texture.core.notation import GraceNote, NotatedVoice, NoteEvent, RestFermata
 from aretz_texture.core.score import Bar, Part, Score
 from aretz_texture.ingest.sources import read_grand_staff_file, read_score
 from aretz_texture.render.full_score import write_full_score
@@ -36,6 +37,8 @@ class DifferenceKind(StrEnum):
     BARS = "bars"
     KEY_SIGNATURES = "key_signatures"
     TIME_SIGNATURES = "time_signatures"
+    GRACE_NOTE = "grace_note"  # the grace notes at one onset differ, in any way
+    REST_FERMATA = "rest_fermata"  # the fermatas on rests at one onset differ, in any way
 
 
 class RoundTripDifference(BaseModel):
@@ -245,7 +248,50 @@ def _compare_voice(
         )
         if difference is not None:
             differences.append(difference)
+    differences += _compare_by_onset(
+        original.grace_notes, returned.grace_notes, DifferenceKind.GRACE_NOTE, bars, scope
+    )
+    differences += _compare_by_onset(
+        original.rest_fermatas, returned.rest_fermatas, DifferenceKind.REST_FERMATA, bars, scope
+    )
     return differences
+
+
+def _compare_by_onset(
+    original: Sequence[GraceNote] | Sequence[RestFermata],
+    returned: Sequence[GraceNote] | Sequence[RestFermata],
+    kind: DifferenceKind,
+    bars: tuple[Bar, ...],
+    scope: _Scope,
+) -> list[RoundTripDifference]:
+    """Compare what a voice holds at each onset, keeping the order of items at one onset."""
+    original_by_onset = _group_by_onset(original)
+    returned_by_onset = _group_by_onset(returned)
+    differences: list[RoundTripDifference] = []
+    for onset in sorted(original_by_onset.keys() | returned_by_onset.keys()):
+        before = original_by_onset.get(onset, ())
+        after = returned_by_onset.get(onset, ())
+        if before != after:
+            what = _change_label(before, after)
+            where = f"at onset {onset} ({_bar_label(bars, onset)})"
+            description = f"{kind.value} {what} {where}: {before} became {after}"
+            differences.append(scope.difference(kind, description, onset))
+    return differences
+
+
+def _change_label(before: tuple[object, ...], after: tuple[object, ...]) -> str:
+    if not after:
+        return "missing in the output"
+    return "not in the original" if not before else "altered"
+
+
+def _group_by_onset(
+    items: Sequence[GraceNote] | Sequence[RestFermata],
+) -> dict[Fraction, tuple[GraceNote | RestFermata, ...]]:
+    grouped: dict[Fraction, list[GraceNote | RestFermata]] = {}
+    for item in items:
+        grouped.setdefault(item.onset, []).append(item)
+    return {onset: tuple(group) for onset, group in grouped.items()}
 
 
 def _compare_event(
