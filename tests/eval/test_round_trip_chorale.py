@@ -3,6 +3,7 @@
 # See ADR 0003: music21 is untyped; tests that build music21 objects follow the boundary rule.
 from pathlib import Path
 
+import pytest
 from music21 import note, pitch
 from tests.music21_builders import bar_of, part_of, score_of
 
@@ -39,3 +40,14 @@ def test_a_score_ingestion_rejects_is_unsupported_with_its_reason(tmp_path: Path
     assert result.part_count == 0
     assert "microtonal" in result.unsupported_reason
     assert result.differences == ()
+
+
+@pytest.mark.parametrize("identifier", ["bach/bwv299", "bach/bwv315"])
+def test_a_chorale_with_grace_notes_is_identical_through_both_routes(
+    identifier: str, tmp_path: Path
+) -> None:
+    result = round_trip_chorale(identifier, tmp_path)
+
+    assert result.outcome is ChoraleOutcome.IDENTICAL
+    assert result.part_count == 4
+    assert result.grand_staff_skip_reason == ""

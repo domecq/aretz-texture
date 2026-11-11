@@ -134,6 +134,14 @@ VOICES_WITH_REST_FERMATAS = {
         rest_fermatas=(rest_fermata(2, 2), rest_fermata(4, 2)),
     ),
     "before a note": NotatedVoice(events=(event(1, 3, "G4"),), rest_fermatas=(rest_fermata(0, 1),)),
+    "on a triplet eighth": NotatedVoice(
+        events=(event(0, Fraction(1, 3)), event(Fraction(2, 3), Fraction(1, 3)), event(1, 3)),
+        rest_fermatas=(rest_fermata(Fraction(1, 3), Fraction(1, 3)),),
+    ),
+    "on a whole triplet group": NotatedVoice(
+        events=(event(1, 3),),
+        rest_fermatas=tuple(rest_fermata(Fraction(index, 3), Fraction(1, 3)) for index in range(3)),
+    ),
 }
 
 

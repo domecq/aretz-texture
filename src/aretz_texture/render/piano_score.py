@@ -186,6 +186,7 @@ def _build_fermata(voice_number: int) -> expressions.Fermata:
 
 def _build_rest_fermata(rest_fermata: RestFermata, voice_number: int) -> note.Rest:
     rest = note.Rest(quarterLength=rest_fermata.duration)
+    _keep_duration_as_written(rest)
     rest.expressions.append(_build_fermata(voice_number))
     return rest
 

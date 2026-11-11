@@ -181,6 +181,7 @@ def _build_note(event: NoteEvent) -> note.GeneralNote:
 
 def _build_rest_fermata(rest_fermata: RestFermata) -> note.Rest:
     rest = note.Rest(quarterLength=rest_fermata.duration)
+    _keep_duration_as_written(rest)
     fermata = expressions.Fermata()
     # music21 makes a fermata inverted, printed below the staff, unless told otherwise.
     fermata.type = "upright"

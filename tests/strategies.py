@@ -11,8 +11,10 @@ from hypothesis.strategies import DrawFn
 from aretz_texture.core.notation import (
     STEP_NAMES,
     EventPitch,
+    GraceNote,
     NotatedVoice,
     NoteEvent,
+    RestFermata,
     SpelledPitch,
     TieType,
 )
@@ -34,6 +36,11 @@ PLAIN_DURATIONS = [
     Fraction(3),
     Fraction(4),
 ]
+# Notated values of grace notes: a sixteenth and an eighth.
+GRACE_NOTE_VALUES = [Fraction(1, 4), Fraction(1, 2)]
+# Rests of these lengths are stretched by music21 to the bar when they stand alone in a
+# measure of another length, so the generated fermata rests avoid that case.
+STRETCHABLE_REST_DURATIONS = {Fraction(4), Fraction(8)}
 TRIPLET_EIGHTH = Fraction(1, 3)
 TRIPLET_GROUP_SIZE = 3
 MAX_FULL_BARS = 4
@@ -103,19 +110,55 @@ def _draft_of(draw: DrawFn, onset: Fraction, duration: Fraction) -> _Draft:
     return _Draft(onset, duration, pitches, [None] * len(pitches), fermata)
 
 
+@dataclass
+class _VoiceDrafts:
+    """What a notated voice holds before ties are applied."""
+
+    events: list[_Draft]
+    rest_fermatas: list[RestFermata]
+    grace_notes: list[GraceNote]
+
+
 @st.composite
-def _voice_drafts(draw: DrawFn, bar_durations: list[Fraction]) -> list[_Draft]:
-    drafts: list[_Draft] = []
+def _grace_notes_at(draw: DrawFn, onset: Fraction) -> list[GraceNote]:
+    count = {0: 1, 1: 2}.get(draw(st.integers(min_value=0, max_value=9)), 0)
+    graces: list[GraceNote] = []
+    for _ in range(count):
+        pitches = draw(st.lists(SPELLED_PITCHES, min_size=1, max_size=2))
+        ordered = sorted(pitches, key=lambda pitch: pitch.highest_first_key())
+        graces.append(
+            GraceNote(
+                onset=onset,
+                pitches=tuple(EventPitch(pitch=pitch, tie=None) for pitch in ordered),
+                notated_value=draw(st.sampled_from(GRACE_NOTE_VALUES)),
+                slash=draw(st.booleans()),
+            )
+        )
+    return graces
+
+
+@st.composite
+def _voice_drafts(
+    draw: DrawFn, bar_durations: list[Fraction], meter_duration: Fraction
+) -> _VoiceDrafts:
+    drafts = _VoiceDrafts([], [], [])
     onset = Fraction(0)
     for bar_duration in bar_durations:
         bar_is_silent = draw(st.integers(min_value=0, max_value=4)) == 0
         cursor = onset
         for duration in draw(_tiling(bar_duration)):
+            drafts.grace_notes += draw(_grace_notes_at(cursor))
             if not bar_is_silent and draw(st.integers(min_value=0, max_value=3)) > 0:
-                drafts.append(draw(_draft_of(cursor, duration)))
+                drafts.events.append(draw(_draft_of(cursor, duration)))
+            elif _may_carry_fermata(duration, meter_duration) and draw(st.integers(0, 9)) == 0:
+                drafts.rest_fermatas.append(RestFermata(onset=cursor, duration=duration))
             cursor += duration
         onset += bar_duration
     return drafts
+
+
+def _may_carry_fermata(duration: Fraction, meter_duration: Fraction) -> bool:
+    return duration not in STRETCHABLE_REST_DURATIONS or duration == meter_duration
 
 
 def _apply_tie(draw: DrawFn, source: _Draft, target: _Draft) -> None:
@@ -128,25 +171,34 @@ def _apply_tie(draw: DrawFn, source: _Draft, target: _Draft) -> None:
 
 
 @st.composite
-def _notated_voice(draw: DrawFn, bar_durations: list[Fraction]) -> NotatedVoice:
-    drafts = draw(_voice_drafts(bar_durations))
-    for source, target in pairwise(drafts):
+def _notated_voice(
+    draw: DrawFn, bar_durations: list[Fraction], meter_duration: Fraction
+) -> NotatedVoice:
+    drafts = draw(_voice_drafts(bar_durations, meter_duration))
+    for source, target in pairwise(drafts.events):
         touching = source.onset + source.duration == target.onset
         if touching and draw(st.integers(min_value=0, max_value=3)) == 0:
             _apply_tie(draw, source, target)
-    return NotatedVoice(events=tuple(draft.freeze() for draft in drafts))
+    return NotatedVoice(
+        events=tuple(draft.freeze() for draft in drafts.events),
+        grace_notes=tuple(drafts.grace_notes),
+        rest_fermatas=tuple(drafts.rest_fermatas),
+    )
 
 
 @st.composite
 def _part(
     draw: DrawFn,
     bar_durations: list[Fraction],
+    meter_duration: Fraction,
     voice_count: int,
     key_signature: KeySignatureChange,
 ) -> Part:
-    voices = [draw(_notated_voice(bar_durations)) for _ in range(voice_count)]
-    if voice_count > 1 and not voices[-1].events:
-        voices[-1] = draw(_notated_voice(bar_durations).filter(lambda voice: bool(voice.events)))
+    voices = [draw(_notated_voice(bar_durations, meter_duration)) for _ in range(voice_count)]
+    if voice_count > 1 and not voices[-1].has_content():
+        voices[-1] = draw(
+            _notated_voice(bar_durations, meter_duration).filter(NotatedVoice.has_content)
+        )
     name = draw(NAMES)
     # music21 gives a part without a name the name of its instrument when it reads the file
     # back, so the generated instrument name is only kept with a part name.
@@ -193,7 +245,7 @@ def _scores(
             if same_key_in_every_part
             else KeySignatureChange(onset=Fraction(0), sharps=draw(sharps))
         )
-        parts.append(draw(_part(bar_durations, draw(voice_counts), key)))
+        parts.append(draw(_part(bar_durations, full_bar, draw(voice_counts), key)))
     return Score(
         bars=_bars_of(bar_durations, has_pickup),
         time_signatures=(meter,),
