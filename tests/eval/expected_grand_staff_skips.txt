@@ -1,0 +1,5 @@
+# Supported four part chorales that the grand staff route skips, as "identifier: reason".
+# Chorales with more than four parts are not listed: their reason is the part count.
+bach/bwv244.15: part 2 has key signatures that differ from those of part 1
+bach/bwv62.6: part 2 has key signatures that differ from those of part 1
+bach/bwv4.8: part 2 has key signatures that differ from those of part 1

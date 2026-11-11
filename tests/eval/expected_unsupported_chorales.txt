@@ -1,0 +1,4 @@
+# Corpus chorales that ingestion rejects with UnsupportedScoreError, as "identifier: reason".
+# A chorale that enters or leaves this list changes the outcome of the corpus evaluation.
+bach/bwv299: grace notes are not supported yet
+bach/bwv315: grace notes are not supported yet
