@@ -296,7 +296,7 @@ PIANO_LAYOUT: GrandStaffLayout  # parts 1, 2 upper voices 1, 2; parts 3, 4 lower
 def piano_layout(score: Score) -> GrandStaffLayout: ...
 ```
 
-`piano_layout` is pure. It returns `PIANO_LAYOUT` when the score has exactly four parts, each with one notated voice, all with the same key signature changes. Otherwise it raises `GrandStaffMappingError` with the part count and a message such as: `aretz-texture piano renders only scores with exactly four parts; this score has 15. Grand staff rendering of other textures needs the textural analysis of a later spec.` The conditions on notated voices and key signatures are provisional (open question 1); their messages say which part breaks them.
+`piano_layout` is pure. It returns `PIANO_LAYOUT` when the score has exactly four parts, each with one notated voice, all with the same key signature changes. Otherwise it raises `GrandStaffMappingError` with the part count and a message such as: `aretz-texture piano renders only scores with exactly four parts; this score has 15 parts: Trumpet 1, Trumpet 2, Trumpet 3, Timpani, ... Grand staff rendering of other textures needs the textural analysis of a later spec.` The conditions on notated voices and key signatures are provisional (open question 1); their messages say which part breaks them.
 
 `render/full_score.py`:
 
@@ -557,6 +557,16 @@ Taken by Nico on November 7, 2026, while reviewing 001a:
 10. **Enharmonic order in a divided event**: pitches that sound the same are ordered by ascending step, so F sharp 4 comes before G flat 4.
 11. **Distinct chorales**: the corpus iterator lists 21 chorales twice. Evaluation and corpus tests run over the 350 distinct chorales, each once.
 12. **Tests at the music21 boundary**: tests that build music21 objects share the relaxed pyright rules of the boundary through an execution environment for `tests/` in `pyproject.toml`, not through comments in each file. Source modules keep the rules of ADR 0003.
+
+Taken by Nico on November 9, 2026, while reviewing 001b:
+
+13. **Part name filled from the instrument name**: music21 names an unnamed part after its instrument when it reads it back. The comparison in 001c accepts a part name equal to the instrument name as equivalent to no name; ingestion does not normalise it.
+14. **Refusal message of the piano command**: besides the part count, it lists the part names in score order, with `part N (no name)` for unnamed parts.
+15. **Key signature change in the middle of a bar while every notated voice holds a note across it**: music21 cannot write it, so the writers raise `UnsupportedScoreError`. No corpus chorale has the case; it stays an explicit error for now.
+
+Taken by Nico on November 10, 2026, after the manual check of 001b in Sibelius:
+
+16. **Courtesy accidentals on the grand staff**: when two parts share a staff, music21 may add a courtesy accidental that the source did not have. In BWV 66.6 the soprano's E4 in bar 4 gets a natural after the alto's E sharp 4 in bar 3, now on the same staff. This is kept: it is what a copyist would write in a piano reduction, and it helps the reader. Pitches are never affected.
 
 ### Open questions
 

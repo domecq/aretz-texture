@@ -15,6 +15,16 @@ The analysis is deterministic and explains the reading it chose, so a musician c
 
 Early development. The first slice reads a Bach chorale and writes it back as a piano score ([spec 001](docs/specs/001_chorale_round_trip.md)).
 
+## Usage
+
+Write a four part chorale of the music21 corpus, or a MusicXML file with four parts, as a piano score:
+
+```
+uv run aretz-texture piano bwv66.6 --output bwv66_6_piano.musicxml
+```
+
+Parts 1 and 2 go on the upper staff and parts 3 and 4 on the lower staff, each keeping its own rhythm. Scores with another number of parts are read without loss but not yet placed on a grand staff, which needs the textural analysis of a later spec.
+
 ## Documentation
 
 * [Architecture](docs/architecture.md)

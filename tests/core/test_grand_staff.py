@@ -27,10 +27,10 @@ def whole_note_voice() -> NotatedVoice:
     return NotatedVoice(events=(event,))
 
 
-def part_with(voice_count: int = 1, sharps: int = 0) -> Part:
+def part_with(voice_count: int = 1, sharps: int = 0, name: str | None = None) -> Part:
     key = KeySignatureChange(onset=Fraction(0), sharps=sharps)
     return Part(
-        name=None,
+        name=name,
         instrument_name=None,
         key_signatures=(key,),
         voices=(whole_note_voice(),) * voice_count,
@@ -77,10 +77,21 @@ def test_the_part_count_message_says_a_later_spec_is_needed() -> None:
     with pytest.raises(GrandStaffMappingError) as raised:
         piano_layout(score)
 
-    assert str(raised.value) == (
-        "aretz-texture piano renders only scores with exactly four parts; this score has 15. "
+    assert str(raised.value).startswith(
+        "aretz-texture piano renders only scores with exactly four parts; this score has 15"
+    )
+    assert str(raised.value).endswith(
         "Grand staff rendering of other textures needs the textural analysis of a later spec."
     )
+
+
+def test_the_part_count_message_lists_the_part_names_in_score_order() -> None:
+    score = score_with(part_with(name="Soprano 1"), part_with(name="Soprano 2"), part_with())
+
+    with pytest.raises(GrandStaffMappingError) as raised:
+        piano_layout(score)
+
+    assert "this score has 3 parts: Soprano 1, Soprano 2, part 3 (no name)." in str(raised.value)
 
 
 def test_a_part_with_several_notated_voices_is_refused_naming_the_part() -> None:

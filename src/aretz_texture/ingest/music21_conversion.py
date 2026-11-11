@@ -58,11 +58,11 @@ def _convert_parts(parts: list[stream.Part]) -> Score:
     if not parts:
         message = "the score has no parts"
         raise UnsupportedScoreError(message)
-    bars = _read_bars(parts[0])
-    time_signatures = _read_time_signatures(parts[0], bars)
+    bars = read_bars(parts[0])
+    time_signatures = read_time_signatures(parts[0], bars)
     for part_number, part in enumerate(parts[1:], start=2):
-        _require_same_bars(bars, _read_bars(part), part_number)
-        _require_same_time_signatures(time_signatures, part, bars, part_number)
+        require_same_bars(bars, read_bars(part), part_number)
+        require_same_time_signatures(time_signatures, part, bars, part_number)
     return Score(
         bars=bars,
         time_signatures=time_signatures,
@@ -70,7 +70,8 @@ def _convert_parts(parts: list[stream.Part]) -> Score:
     )
 
 
-def _fraction(value: float | Fraction) -> Fraction:
+def to_fraction(value: float | Fraction) -> Fraction:
+    """Return a music21 offset or length as an exact fraction."""
     # music21 gives floats only when they are binary exact (music21.common.opFrac).
     return Fraction(value)
 
@@ -82,31 +83,34 @@ def _clean_name(name: str | None) -> str | None:
     return trimmed or None
 
 
-def _read_bars(part: stream.Part) -> tuple[Bar, ...]:
+def read_bars(part: stream.Part) -> tuple[Bar, ...]:
+    """Read the bars of a part, with their numbers, onsets and actual durations."""
     measures = list(part.getElementsByClass(stream.Measure))
     if not measures:
         message = "a part has no measures"
         raise UnsupportedScoreError(message)
-    onsets = [_fraction(measure.offset) for measure in measures]
-    ends = [*onsets[1:], onsets[-1] + _fraction(measures[-1].highestTime)]
+    onsets = [to_fraction(measure.offset) for measure in measures]
+    ends = [*onsets[1:], onsets[-1] + to_fraction(measures[-1].highestTime)]
     return tuple(
         Bar(number=measure.number, onset=onset, duration=end - onset)
         for measure, onset, end in zip(measures, onsets, ends, strict=True)
     )
 
 
-def _require_same_bars(expected: tuple[Bar, ...], found: tuple[Bar, ...], part_number: int) -> None:
+def require_same_bars(expected: tuple[Bar, ...], found: tuple[Bar, ...], part_number: int) -> None:
+    """Raise `UnsupportedScoreError` when the bars of a part differ from those of part 1."""
     if expected != found:
         message = f"the bars of part {part_number} do not line up with the bars of part 1"
         raise UnsupportedScoreError(message)
 
 
-def _read_time_signatures(
+def read_time_signatures(
     part: stream.Part, bars: tuple[Bar, ...]
 ) -> tuple[TimeSignatureChange, ...]:
+    """Read the time signature changes of a part, which must fall on bar lines."""
     changes = tuple(
         TimeSignatureChange(
-            onset=_fraction(signature.getOffsetInHierarchy(part)),
+            onset=to_fraction(signature.getOffsetInHierarchy(part)),
             numerator=signature.numerator,
             denominator=signature.denominator,
         )
@@ -123,13 +127,14 @@ def _read_time_signatures(
     return changes
 
 
-def _require_same_time_signatures(
+def require_same_time_signatures(
     expected: tuple[TimeSignatureChange, ...],
     part: stream.Part,
     bars: tuple[Bar, ...],
     part_number: int,
 ) -> None:
-    if _read_time_signatures(part, bars) != expected:
+    """Raise `UnsupportedScoreError` when a part has other time signatures than part 1."""
+    if read_time_signatures(part, bars) != expected:
         message = f"the time signatures of part {part_number} differ from those of part 1"
         raise UnsupportedScoreError(message)
 
@@ -142,15 +147,16 @@ def _convert_part(part: stream.Part) -> Part:
     return Part(
         name=_clean_name(part.partName),
         instrument_name=_clean_name(instrument.instrumentName) if instrument else None,
-        key_signatures=_read_key_signatures(part),
+        key_signatures=read_key_signatures(part),
         voices=_read_notated_voices(part),
     )
 
 
-def _read_key_signatures(part: stream.Part) -> tuple[KeySignatureChange, ...]:
+def read_key_signatures(part: stream.Part) -> tuple[KeySignatureChange, ...]:
+    """Read the key signature changes of a part, with consecutive duplicates collapsed."""
     changes = [
         KeySignatureChange(
-            onset=_fraction(signature.getOffsetInHierarchy(part)), sharps=signature.sharps
+            onset=to_fraction(signature.getOffsetInHierarchy(part)), sharps=signature.sharps
         )
         for signature in part.recurse().getElementsByClass(key.KeySignature)
     ]
@@ -167,7 +173,7 @@ def _read_notated_voices(part: stream.Part) -> tuple[NotatedVoice, ...]:
     events_by_voice: dict[int, list[NoteEvent]] = {}
     for measure in part.getElementsByClass(stream.Measure):
         for voice_number, container in _voice_containers(measure):
-            events = _read_events(container, _fraction(measure.offset))
+            events = read_events(container, to_fraction(measure.offset))
             if events:
                 events_by_voice.setdefault(voice_number, []).extend(events)
     voice_count = max(events_by_voice, default=1)
@@ -191,12 +197,13 @@ def _voice_containers(
     return list(enumerate(measure.voices, start=1))
 
 
-def _read_events(
+def read_events(
     container: stream.Measure | stream.Voice, measure_onset: Fraction
 ) -> list[NoteEvent]:
+    """Read the note events of a measure or voice, skipping rests."""
     # A voice sits at offset 0 of its measure in practice; adding it keeps the onset exact anyway.
     is_voice = isinstance(container, stream.Voice)
-    container_onset = measure_onset + (_fraction(container.offset) if is_voice else 0)
+    container_onset = measure_onset + (to_fraction(container.offset) if is_voice else 0)
     events: list[NoteEvent] = []
     for element in container.notesAndRests:
         if isinstance(element, note.Rest):
@@ -231,8 +238,8 @@ def _convert_element(element: note.GeneralNote, container_onset: Fraction) -> No
     if isinstance(element, chord.Chord):
         expressions_of_element += [e for sounding in sounding_notes for e in sounding.expressions]
     return NoteEvent(
-        onset=container_onset + _fraction(element.offset),
-        duration=_fraction(element.duration.quarterLength),
+        onset=container_onset + to_fraction(element.offset),
+        duration=to_fraction(element.duration.quarterLength),
         pitches=tuple(pitches),
         fermata=_has_fermata(expressions_of_element),
     )
@@ -274,4 +281,13 @@ def _has_lyrics(source: stream.Score) -> bool:
     return False
 
 
-__all__ = ["convert_score"]
+__all__ = [
+    "convert_score",
+    "read_bars",
+    "read_events",
+    "read_key_signatures",
+    "read_time_signatures",
+    "require_same_bars",
+    "require_same_time_signatures",
+    "to_fraction",
+]

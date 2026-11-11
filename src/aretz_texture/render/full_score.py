@@ -3,7 +3,6 @@
 """Writing the core model as a MusicXML full score, one staff per part."""
 
 from fractions import Fraction
-from itertools import pairwise
 from pathlib import Path
 
 from music21 import chord, clef, expressions, instrument, key, meter, note, pitch, stream, tie
@@ -11,9 +10,7 @@ from music21 import chord, clef, expressions, instrument, key, meter, note, pitc
 from aretz_texture.core.errors import UnsupportedScoreError
 from aretz_texture.core.notation import EventPitch, NotatedVoice, NoteEvent
 from aretz_texture.core.score import Bar, KeySignatureChange, Part, Score, TimeSignatureChange
-
-# Durations of the undotted whole and breve rests, in quarter lengths.
-STRETCHABLE_REST_DURATIONS = frozenset({Fraction(4), Fraction(8)})
+from aretz_texture.render.rests import BarRests, insert_rests
 
 
 def write_full_score(score: Score, output_path: Path) -> None:
@@ -58,11 +55,13 @@ def _build_measure(score: Score, part: Part, bar: Bar) -> stream.Measure:
     key_changes = [
         change for change in part.key_signatures if bar.onset <= change.onset < _bar_end(bar)
     ]
-    key_offsets = {change.onset - bar.onset for change in key_changes} - {Fraction(0)}
-    meter_duration = _time_signature_in_force(score, bar).bar_duration()
+    rests = BarRests(
+        meter_duration=_time_signature_in_force(score, bar).bar_duration(),
+        split_offsets=frozenset(change.onset - bar.onset for change in key_changes) - {Fraction(0)},
+    )
     containers = _containers(measure, voice_count)
     for container, events in zip(containers, events_by_voice, strict=False):
-        _fill(container, events, bar, key_offsets, meter_duration)
+        _fill(container, events, bar, rests)
     for change in key_changes:
         _insert_key_signature(measure, containers, events_by_voice, bar, change)
     return measure
@@ -93,56 +92,15 @@ def _fill(
     container: stream.Measure | stream.Voice,
     events: list[NoteEvent],
     bar: Bar,
-    split_offsets: set[Fraction],
-    meter_duration: Fraction,
+    rests: BarRests,
 ) -> None:
     cursor = Fraction(0)
     for event in events:
         gap_end = event.onset - bar.onset
-        _insert_rests(container, cursor, gap_end, split_offsets, meter_duration)
+        insert_rests(container, cursor, gap_end, rests)
         container.insert(event.onset - bar.onset, _build_note(event))
         cursor = event.end() - bar.onset
-    _insert_rests(container, cursor, bar.duration, split_offsets, meter_duration)
-
-
-def _insert_rests(
-    container: stream.Measure | stream.Voice,
-    start: Fraction,
-    end: Fraction,
-    split_offsets: set[Fraction],
-    meter_duration: Fraction,
-) -> None:
-    # A gap is cut where a key signature change falls inside it, so that the change can
-    # be written at its exact onset: music21 writes it after the element that spans it.
-    cuts = [start, *sorted(offset for offset in split_offsets if start < offset < end), end]
-    for rest_start, rest_end in pairwise(cuts):
-        for piece_start, piece_end in _unstretchable_pieces(rest_start, rest_end, meter_duration):
-            rest = note.Rest(quarterLength=piece_end - piece_start)
-            if isinstance(container, stream.Voice):
-                # music21 marks a rest that fills a bar as a whole bar rest; when it reads
-                # one inside a voice it stretches the first rest of the measure, which may
-                # belong to another voice. Rests in voices are written as ordinary rests.
-                rest.fullMeasure = False
-            container.insert(piece_start, rest)
-
-
-def _unstretchable_pieces(
-    start: Fraction, end: Fraction, meter_duration: Fraction
-) -> list[tuple[Fraction, Fraction]]:
-    """Split a rest that music21 would stretch to the whole bar when reading it back.
-
-    When music21 reads a measure that holds a single rest and no single notes (it does not
-    count chords), and that rest is an undotted whole or breve rest of another length than
-    the meter, it stretches the rest to the meter. Writing such a rest as two halves keeps
-    the bar length; the model stores no rests, so nothing else changes.
-    """
-    if end <= start:
-        return []
-    length = end - start
-    if length in STRETCHABLE_REST_DURATIONS and length != meter_duration:
-        middle = start + length / 2
-        return [(start, middle), (middle, end)]
-    return [(start, end)]
+    insert_rests(container, cursor, bar.duration, rests)
 
 
 def _insert_key_signature(
