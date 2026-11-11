@@ -71,6 +71,16 @@ class EventPitch(BaseModel):
     tie: TieType | None  # None when this pitch is not tied
 
 
+def _check_pitches_are_ordered(pitches: tuple[EventPitch, ...]) -> None:
+    if not pitches:
+        message = "at least one pitch is needed"
+        raise ValueError(message)
+    keys = [event_pitch.pitch.highest_first_key() for event_pitch in pitches]
+    if any(following < previous for previous, following in pairwise(keys)):
+        message = "pitches must be ordered from highest to lowest"
+        raise ValueError(message)
+
+
 class NoteEvent(BaseModel):
     """One notated note or divided chord of a notated voice."""
 
@@ -86,17 +96,50 @@ class NoteEvent(BaseModel):
         if self.duration <= 0:
             message = f"duration must be greater than 0, got {self.duration}"
             raise ValueError(message)
-        if not self.pitches:
-            message = "a note event needs at least one pitch"
-            raise ValueError(message)
-        keys = [event_pitch.pitch.highest_first_key() for event_pitch in self.pitches]
-        if any(following < previous for previous, following in pairwise(keys)):
-            message = "pitches must be ordered from highest to lowest"
-            raise ValueError(message)
+        _check_pitches_are_ordered(self.pitches)
         return self
 
     def end(self) -> Fraction:
         """Return the onset at which this event stops."""
+        return self.onset + self.duration
+
+
+class GraceNote(BaseModel):
+    """An ornamental note or chord written small, which takes no time in the bar."""
+
+    model_config = ConfigDict(frozen=True)
+
+    onset: Fraction  # onset of the note or rest it ornaments
+    pitches: tuple[EventPitch, ...]  # highest first
+    notated_value: Fraction  # quarter lengths of the symbol, 1/2 for an eighth
+    slash: bool  # written with a slash through the stem
+
+    @model_validator(mode="after")
+    def _check_structure(self) -> Self:
+        if self.notated_value <= 0:
+            message = f"notated value must be greater than 0, got {self.notated_value}"
+            raise ValueError(message)
+        _check_pitches_are_ordered(self.pitches)
+        return self
+
+
+class RestFermata(BaseModel):
+    """A fermata on a rest, kept because the rest is notated, unlike a plain gap."""
+
+    model_config = ConfigDict(frozen=True)
+
+    onset: Fraction
+    duration: Fraction  # the notated rest that carries the fermata
+
+    @model_validator(mode="after")
+    def _check_duration_is_positive(self) -> Self:
+        if self.duration <= 0:
+            message = f"duration must be greater than 0, got {self.duration}"
+            raise ValueError(message)
+        return self
+
+    def end(self) -> Fraction:
+        """Return the onset at which this rest stops."""
         return self.onset + self.duration
 
 
@@ -106,13 +149,43 @@ class NotatedVoice(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     events: tuple[NoteEvent, ...]  # sorted by onset, never overlapping
+    grace_notes: tuple[GraceNote, ...] = ()  # sorted by onset, source order kept
+    rest_fermatas: tuple[RestFermata, ...] = ()  # each inside a gap between events
 
     @model_validator(mode="after")
-    def _check_events_are_sorted_and_apart(self) -> Self:
-        for previous, following in pairwise(self.events):
+    def _check_structure(self) -> Self:
+        solid = sorted([*self.events, *self.rest_fermatas], key=lambda item: item.onset)
+        for previous, following in pairwise(solid):
             if following.onset < previous.end():
-                message = (
-                    f"events at {previous.onset} and {following.onset} are unsorted or overlap"
-                )
+                message = f"items at {previous.onset} and {following.onset} are unsorted or overlap"
                 raise ValueError(message)
+        if [e.onset for e in self.events] != sorted(e.onset for e in self.events):
+            message = "events must be sorted by onset"
+            raise ValueError(message)
+        if [r.onset for r in self.rest_fermatas] != sorted(r.onset for r in self.rest_fermatas):
+            message = "rest fermatas must be sorted by onset"
+            raise ValueError(message)
+        self._check_grace_notes(solid)
         return self
+
+    def _check_grace_notes(self, solid: list[NoteEvent | RestFermata]) -> None:
+        onsets = [grace_note.onset for grace_note in self.grace_notes]
+        if onsets != sorted(onsets):
+            message = "grace notes must be sorted by onset"
+            raise ValueError(message)
+        for grace_note in self.grace_notes:
+            if any(item.onset < grace_note.onset < item.end() for item in solid):
+                message = f"the grace note at {grace_note.onset} falls inside a note or rest"
+                raise ValueError(message)
+
+    def has_content(self) -> bool:
+        """Return whether anything is written in this voice besides plain rests."""
+        return bool(self.events or self.grace_notes or self.rest_fermatas)
+
+    def within(self, start: Fraction, end: Fraction) -> "NotatedVoice":
+        """Return the part of this voice that starts from `start` up to, not including, `end`."""
+        return NotatedVoice(
+            events=tuple(e for e in self.events if start <= e.onset < end),
+            grace_notes=tuple(g for g in self.grace_notes if start <= g.onset < end),
+            rest_fermatas=tuple(r for r in self.rest_fermatas if start <= r.onset < end),
+        )

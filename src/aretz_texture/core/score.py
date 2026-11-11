@@ -66,7 +66,7 @@ class Part(BaseModel):
         if not self.voices:
             message = "a part needs at least one notated voice"
             raise ValueError(message)
-        if len(self.voices) > 1 and not self.voices[-1].events:
+        if len(self.voices) > 1 and not self.voices[-1].has_content():
             message = "the last notated voice of a part with several must have content"
             raise ValueError(message)
         if not self.key_signatures or self.key_signatures[0].onset != 0:
@@ -109,8 +109,11 @@ class Score(BaseModel):
         end = self.end()
         for part in self.parts:
             for voice in part.voices:
-                if any(event.end() > end for event in voice.events):
+                if any(event.end() > end for event in [*voice.events, *voice.rest_fermatas]):
                     message = f"an event ends after the last bar, at {end}"
+                    raise ValueError(message)
+                if any(grace_note.onset >= end for grace_note in voice.grace_notes):
+                    message = f"a grace note ornaments nothing, at or after the last bar, at {end}"
                     raise ValueError(message)
 
     def end(self) -> Fraction:
