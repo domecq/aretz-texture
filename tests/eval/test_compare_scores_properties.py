@@ -4,7 +4,6 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 from tests.strategies import scores
 
-from aretz_texture.core.notation import NotatedVoice
 from aretz_texture.core.score import Score
 from aretz_texture.eval.round_trip import DifferenceKind, RoundTripRoute, compare_scores
 
@@ -32,7 +31,7 @@ def test_removing_any_one_event_gives_one_missing_event_at_its_place(
     removed = part.voices[voice_index].events[event_index]
     kept = tuple(e for i, e in enumerate(part.voices[voice_index].events) if i != event_index)
     voices = list(part.voices)
-    voices[voice_index] = NotatedVoice(events=kept)
+    voices[voice_index] = part.voices[voice_index].model_copy(update={"events": kept})
     parts = list(score.parts)
     # model_copy skips validation, so a voice left empty does not stop the example.
     parts[part_index] = part.model_copy(update={"voices": tuple(voices)})

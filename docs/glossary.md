@@ -24,11 +24,11 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Event pitch** (`EventPitch`): one pitch of a note event or grace note together with its tie.
 
-**Fermata** (`NoteEvent.fermata`, `RestFermata`): a pause sign over or under a note or rest, which in chorales marks the end of a phrase. On a note it is a property of the note event; on a rest it is stored as a rest fermata with the onset and duration of the rest.
+**Fermata** (`NoteEvent.fermata`, `RestFermata`): a pause sign over or under a note or rest, which in chorales marks the end of a phrase. On a note it is a property of the note event; on a rest it is stored as a rest fermata.
 
 **Full score**: the rendering of a score with one staff per part, in score order, with part and instrument names (`render/full_score.py`). Used by the evaluation to round trip scores with any number of parts.
 
-**Grace note** (`GraceNote`): an ornamental note written small, which takes no time in the bar. Stored in its notated voice next to the note events, with the onset of the note it ornaments, its pitches, its notated value and whether it has a slash.
+**Grace note** (`GraceNote`, `NotatedVoice.grace_notes`): an ornamental note or chord written small, which takes no time in the bar, so it is not a note event. Stored in its notated voice next to the note events, with the onset of the note or rest it ornaments, its pitches with their ties, its notated value (the quarter lengths of its symbol, 1/2 for an eighth) and whether it has a slash. Grace notes at one onset keep their source order and are written before the note or rest at that onset.
 
 **Grand staff** (`GrandStaffLayout`): the two staff system of piano music, an upper staff in treble clef for the right hand and a lower staff in bass clef for the left hand, joined by a brace. `PIANO_LAYOUT` places parts 1 and 2 in score order on the upper staff and parts 3 and 4 on the lower one.
 
@@ -63,6 +63,8 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 **Planes** ([± planes]): the textural feature that asks whether autonomous planes are distinguished in the simultaneity. Concept, not yet implemented.
 
 **Quarter length**: the unit of every time value in the code: one quarter note equals 1. An eighth note is 1/2 and a triplet eighth is 1/3.
+
+**Rest fermata** (`RestFermata`, `NotatedVoice.rest_fermatas`): a fermata written on a notated rest. Rests are otherwise not stored (silence is the time not covered by note events), so a rest that carries a fermata is kept with the onset and duration of the notated rest, always inside a gap between the events of its notated voice. The writers give it exactly that onset and duration and never split it.
 
 **Round trip**: reading a score into the core model, writing it out and reading the result back, then checking that nothing was lost or altered (`eval/round_trip.py`). It runs through the full score for every score and also through the grand staff for scores of four parts (`RoundTripRoute`).
 

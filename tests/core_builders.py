@@ -6,8 +6,10 @@ from fractions import Fraction
 from aretz_texture.core.notation import (
     STEP_NAMES,
     EventPitch,
+    GraceNote,
     NotatedVoice,
     NoteEvent,
+    RestFermata,
     SpelledPitch,
     TieType,
 )
@@ -56,18 +58,41 @@ def divided_event(
     )
 
 
+def grace_note(
+    onset: Fraction | int,
+    *pitches: str,
+    notated_value: Fraction | int = Fraction(1, 2),
+    slash: bool = True,
+) -> GraceNote:
+    """Return a grace note with the given untied pitches, highest first."""
+    return GraceNote(
+        onset=Fraction(onset),
+        pitches=tuple(EventPitch(pitch=spelled_pitch(name), tie=None) for name in pitches),
+        notated_value=Fraction(notated_value),
+        slash=slash,
+    )
+
+
+def rest_fermata(onset: Fraction | int, duration: Fraction | int) -> RestFermata:
+    """Return a fermata on a rest."""
+    return RestFermata(onset=Fraction(onset), duration=Fraction(duration))
+
+
 def part_of(
-    *voices: Sequence[NoteEvent],
+    *voices: Sequence[NoteEvent] | NotatedVoice,
     name: str | None = None,
     instrument_name: str | None = None,
     key_signatures: Sequence[KeySignatureChange] | None = None,
 ) -> Part:
-    """Return a part with one notated voice per sequence of events."""
+    """Return a part with one notated voice per sequence of events, or per given voice."""
     return Part(
         name=name,
         instrument_name=instrument_name,
         key_signatures=tuple(key_signatures or [KeySignatureChange(onset=Fraction(0), sharps=0)]),
-        voices=tuple(NotatedVoice(events=tuple(events)) for events in voices),
+        voices=tuple(
+            voice if isinstance(voice, NotatedVoice) else NotatedVoice(events=tuple(voice))
+            for voice in voices
+        ),
     )
 
 

@@ -2,15 +2,33 @@
 # See ADR 0003: music21 is untyped; this module is the boundary.
 """Writing the core model as a MusicXML full score, one staff per part."""
 
+from dataclasses import replace
 from fractions import Fraction
 from pathlib import Path
 
-from music21 import chord, clef, expressions, instrument, key, meter, note, pitch, stream, tie
+from music21 import (
+    chord,
+    clef,
+    duration,
+    expressions,
+    instrument,
+    key,
+    meter,
+    note,
+    pitch,
+    stream,
+    tie,
+)
 
 from aretz_texture.core.errors import UnsupportedScoreError
-from aretz_texture.core.notation import EventPitch, NotatedVoice, NoteEvent
+from aretz_texture.core.notation import EventPitch, GraceNote, NotatedVoice, NoteEvent, RestFermata
 from aretz_texture.core.score import Bar, KeySignatureChange, Part, Score, TimeSignatureChange
-from aretz_texture.render.rests import BarRests, insert_rests
+from aretz_texture.render.rests import (
+    BarRests,
+    insert_rest,
+    insert_rests,
+    require_fermata_rests_read_back_exactly,
+)
 
 
 def write_full_score(score: Score, output_path: Path) -> None:
@@ -50,8 +68,8 @@ def _build_measure(score: Score, part: Part, bar: Bar) -> stream.Measure:
         if change.onset == bar.onset:
             measure.insert(0, meter.TimeSignature(f"{change.numerator}/{change.denominator}"))
     _set_padding(measure, score, bar)
-    events_by_voice = [_events_in_bar(voice, bar) for voice in part.voices]
-    voice_count = _voice_count(events_by_voice)
+    voices_in_bar = [voice.within(bar.onset, _bar_end(bar)) for voice in part.voices]
+    voice_count = _voice_count(voices_in_bar)
     key_changes = [
         change for change in part.key_signatures if bar.onset <= change.onset < _bar_end(bar)
     ]
@@ -60,20 +78,19 @@ def _build_measure(score: Score, part: Part, bar: Bar) -> stream.Measure:
         split_offsets=frozenset(change.onset - bar.onset for change in key_changes) - {Fraction(0)},
     )
     containers = _containers(measure, voice_count)
-    for container, events in zip(containers, events_by_voice, strict=False):
-        _fill(container, events, bar, rests)
+    for container, voice in zip(containers, voices_in_bar, strict=False):
+        _fill(container, voice, bar, rests)
+    require_fermata_rests_read_back_exactly(measure, rests.meter_duration)
     for change in key_changes:
-        _insert_key_signature(measure, containers, events_by_voice, bar, change)
+        _insert_key_signature(measure, containers, voices_in_bar, bar, change)
     return measure
 
 
-def _voice_count(events_by_voice: list[list[NoteEvent]]) -> int:
-    numbers_with_content = (number for number, events in enumerate(events_by_voice, 1) if events)
+def _voice_count(voices_in_bar: list[NotatedVoice]) -> int:
+    numbers_with_content = (
+        number for number, voice in enumerate(voices_in_bar, 1) if voice.has_content()
+    )
     return max(numbers_with_content, default=1)
-
-
-def _events_in_bar(voice: NotatedVoice, bar: Bar) -> list[NoteEvent]:
-    return [event for event in voice.events if bar.onset <= event.onset < _bar_end(bar)]
 
 
 def _containers(measure: stream.Measure, voice_count: int) -> list[stream.Measure | stream.Voice]:
@@ -90,23 +107,30 @@ def _containers(measure: stream.Measure, voice_count: int) -> list[stream.Measur
 
 def _fill(
     container: stream.Measure | stream.Voice,
-    events: list[NoteEvent],
+    voice: NotatedVoice,
     bar: Bar,
     rests: BarRests,
 ) -> None:
+    # A rest is cut where a grace note falls, so that the grace note comes right before a rest.
+    grace_offsets = frozenset(grace_note.onset - bar.onset for grace_note in voice.grace_notes)
+    gap_rests = replace(rests, split_offsets=rests.split_offsets | grace_offsets)
     cursor = Fraction(0)
-    for event in events:
-        gap_end = event.onset - bar.onset
-        insert_rests(container, cursor, gap_end, rests)
+    for item in sorted([*voice.events, *voice.rest_fermatas], key=lambda item: item.onset):
+        insert_rests(container, cursor, item.onset - bar.onset, gap_rests)
+        cursor = item.end() - bar.onset
+    insert_rests(container, cursor, bar.duration, gap_rests)
+    for event in voice.events:
         container.insert(event.onset - bar.onset, _build_note(event))
-        cursor = event.end() - bar.onset
-    insert_rests(container, cursor, bar.duration, rests)
+    for rest_fermata in voice.rest_fermatas:
+        insert_rest(container, rest_fermata.onset - bar.onset, _build_rest_fermata(rest_fermata))
+    for grace_note in voice.grace_notes:
+        container.insert(grace_note.onset - bar.onset, _build_grace_note(grace_note))
 
 
 def _insert_key_signature(
     measure: stream.Measure,
     containers: list[stream.Measure | stream.Voice],
-    events_by_voice: list[list[NoteEvent]],
+    voices_in_bar: list[NotatedVoice],
     bar: Bar,
     change: KeySignatureChange,
 ) -> None:
@@ -117,8 +141,9 @@ def _insert_key_signature(
         # at offset 0 it is written whatever the measure holds.
         measure.insert(0, signature)
         return
-    for container, events in zip(containers, events_by_voice, strict=False):
-        if not any(event.onset - bar.onset < offset < event.end() - bar.onset for event in events):
+    for container, voice in zip(containers, voices_in_bar, strict=False):
+        held = [*voice.events, *voice.rest_fermatas]
+        if not any(item.onset - bar.onset < offset < item.end() - bar.onset for item in held):
             container.insert(offset, signature)
             return
     message = f"the key signature change at onset {change.onset} falls inside a note of every voice"
@@ -152,6 +177,28 @@ def _build_note(event: NoteEvent) -> note.GeneralNote:
         # music21 makes a fermata inverted, printed below the staff, unless told otherwise.
         fermata.type = "upright"
         element.expressions.append(fermata)
+    return element
+
+
+def _build_rest_fermata(rest_fermata: RestFermata) -> note.Rest:
+    rest = note.Rest(quarterLength=rest_fermata.duration)
+    _keep_duration_as_written(rest)
+    fermata = expressions.Fermata()
+    # music21 makes a fermata inverted, printed below the staff, unless told otherwise.
+    fermata.type = "upright"
+    rest.expressions.append(fermata)
+    return rest
+
+
+def _build_grace_note(grace_note: GraceNote) -> note.GeneralNote:
+    notes = [
+        _build_pitch(event_pitch, grace_note.notated_value) for event_pitch in grace_note.pitches
+    ]
+    element = notes[0] if len(notes) == 1 else chord.Chord(notes)
+    symbol = duration.Duration(quarterLength=grace_note.notated_value)
+    grace_duration = duration.GraceDuration(type=symbol.type, dots=symbol.dots)
+    grace_duration.slash = grace_note.slash
+    element.duration = grace_duration
     return element
 
 
