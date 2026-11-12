@@ -24,7 +24,7 @@ Close spec 001: compare every corpus chorale with what the tool writes and reads
 
 * The three grace notes of the corpus are all in the soprano, written as eighths with a slash before the main note. They are now kept as `GraceNote` values next to the events, and fermatas on rests as `RestFermata` values. All 350 chorales are now supported and identical through both routes; the list of unsupported chorales is empty.
 * Extending the hypothesis strategies to generate both found, on their first run, that music21 merges three consecutive fermata rests of triplet eighths into one quarter rest. The writers now keep those rests as written.
-* Two limits remain, both outside the corpus and left for Nico to decide: a fermata rest of exactly a whole or a breve in a bar of another length, alone in its measure, which music21 stretches to the whole bar on reading (the same behavior found in 001b, now without the option of splitting the rest); and a grace note with nothing after it in its bar. Both raise `UnsupportedScoreError`.
+* Two limits remain, both outside the corpus and left for Nico to decide: a fermata rest of exactly a whole or a breve in a bar of another length, alone in its measure, which music21 stretches to the whole bar on reading (the same behavior found in 001b, now without the option of splitting the rest); and a grace note with nothing after it in its bar. Both raise `UnsupportedScoreError`. Nico decided to keep both rejections and to revisit them if real use calls for it (decisions 17 and 18).
 
 ## Notes for the article
 

@@ -568,6 +568,11 @@ Taken by Nico on November 10, 2026, after the manual check of 001b in Sibelius:
 
 16. **Courtesy accidentals on the grand staff**: when two parts share a staff, music21 may add a courtesy accidental that the source did not have. In BWV 66.6 the soprano's E4 in bar 4 gets a natural after the alto's E sharp 4 in bar 3, now on the same staff. This is kept: it is what a copyist would write in a piano reduction, and it helps the reader. Pitches are never affected.
 
+Taken by Nico on November 11, 2026, from the review of 001d. Neither case appears in the corpus; both are rejected for now, and use will show whether the behavior is worth changing:
+
+17. **A fermata rest that music21 would stretch** is rejected with `UnsupportedScoreError` when it is written: an undotted whole or breve rest with a fermata, of another length than the meter, alone in its measure with no single note. music21 stretches such a rest to the whole bar when it reads the file back, and a rest that carries a fermata cannot be split to avoid it, which is how `render/rests.py` avoids the same behavior for plain rests.
+18. **A grace note with nothing after it in its bar** is rejected with `UnsupportedScoreError` at ingestion, since its onset would fall in the next bar. A grace note inside a tuplet is rejected too.
+
 ### Open questions
 
 1. **Closed score input and notated voices on the grand staff.** A closed score (two voices on one staff, for example soprano and alto on the upper staff and tenor and bass on the lower) is now representable: two parts, each with two notated voices, or divided events when the source writes the voices as chords. This slice ingests it without loss and round trips it through the full score, but the `piano` command refuses it, because it has two parts, and likewise refuses a four part score where some part has several notated voices. Should a later spec, before the textural analysis exists, place notated voices directly on the grand staff (for example a closed score copied staff by staff, or up to four voices per staff with their stem directions)? Is it a priority, given that much MusicXML exported by students may look like this?
