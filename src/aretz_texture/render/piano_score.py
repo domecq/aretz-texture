@@ -15,6 +15,7 @@ from aretz_texture.core.notation import EventPitch, GraceNote, NotatedVoice, Not
 from aretz_texture.core.score import Bar, KeySignatureChange, Score, TimeSignatureChange
 from aretz_texture.render.rests import (
     BarRests,
+    insert_rest,
     insert_rests,
     require_fermata_rests_read_back_exactly,
 )
@@ -135,8 +136,8 @@ def _fill(
     for event in content.events:
         voice.insert(event.onset - bar.onset, _build_note(event, voice_number))
     for rest_fermata in content.rest_fermatas:
-        voice.insert(
-            rest_fermata.onset - bar.onset, _build_rest_fermata(rest_fermata, voice_number)
+        insert_rest(
+            voice, rest_fermata.onset - bar.onset, _build_rest_fermata(rest_fermata, voice_number)
         )
     for grace_note in content.grace_notes:
         voice.insert(grace_note.onset - bar.onset, _build_grace_note(grace_note, voice_number))

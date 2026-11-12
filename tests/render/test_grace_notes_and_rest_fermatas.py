@@ -349,3 +349,33 @@ def test_a_key_signature_change_inside_a_rest_fermata_that_every_voice_holds_is_
 
     with pytest.raises(UnsupportedScoreError, match="key signature"):
         write_full_score(score, tmp_path / "full.musicxml")
+
+
+def test_a_rest_fermata_filling_a_bar_in_one_voice_keeps_the_rest_of_another_voice(
+    tmp_path: Path,
+) -> None:
+    # A rest that fills a bar inside a voice is read as a whole bar rest, and music21 then
+    # stretches the first rest of the measure, here the plain rest of voice 1.
+    first = [event(0, Fraction(1, 2), "G4")]
+    second = NotatedVoice(events=(), rest_fermatas=(rest_fermata(0, 6),))
+    score = score_of(part_of(first, second), bar_durations=(6,), time_signatures=(THREE_TWO,))
+
+    assert full_score_route(score, tmp_path / "full.musicxml") == score
+
+
+def test_a_rest_fermata_filling_a_bar_on_a_staff_keeps_the_rest_of_the_other_staff_voice(
+    tmp_path: Path,
+) -> None:
+    # Same music21 behavior as above, on the upper staff of the grand staff.
+    filler = [event(0, 6, "C3")]
+    second = NotatedVoice(events=(), rest_fermatas=(rest_fermata(0, 6),))
+    score = score_of(
+        part_of([event(0, Fraction(1, 2), "G4")]),
+        part_of(second),
+        part_of(filler),
+        part_of(filler),
+        bar_durations=(6,),
+        time_signatures=(THREE_TWO,),
+    )
+
+    assert grand_staff_route(score, tmp_path / "piano.musicxml") == score

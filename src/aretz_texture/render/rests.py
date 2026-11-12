@@ -60,10 +60,26 @@ def insert_rests(
     for rest_start, rest_end in pairwise([start, *inner_cuts, end]):
         pieces = _unstretchable_pieces(rest_start, rest_end, rules.meter_duration)
         for piece_start, piece_end in pieces:
-            rest = note.Rest(quarterLength=piece_end - piece_start)
-            if isinstance(container, stream.Voice):
-                rest.fullMeasure = False
-            container.insert(piece_start, rest)
+            insert_rest(container, piece_start, note.Rest(quarterLength=piece_end - piece_start))
+
+
+def insert_rest(
+    container: stream.Measure | stream.Voice, offset: Fraction, rest: note.Rest
+) -> None:
+    """Insert one rest, keeping music21 from reading it as a whole bar rest inside a voice.
+
+    A rest that fills a bar inside a voice would otherwise be written as a whole bar rest,
+    and on reading music21 stretches the first rest of the measure, which may belong to
+    another voice.
+
+    Args:
+        container: The measure, or the voice inside a measure, that receives the rest.
+        offset: Offset of the rest, in quarter lengths from the start of the bar.
+        rest: The rest to insert, with or without a fermata.
+    """
+    if isinstance(container, stream.Voice):
+        rest.fullMeasure = False
+    container.insert(offset, rest)
 
 
 def _unstretchable_pieces(
@@ -100,7 +116,9 @@ def require_fermata_rests_read_back_exactly(
     if len(rests) != 1 or has_single_note:
         return
     length = Fraction(rests[0].quarterLength)
-    carries_fermata = any(isinstance(e, expressions.Fermata) for e in rests[0].expressions)
+    carries_fermata = any(
+        isinstance(expression, expressions.Fermata) for expression in rests[0].expressions
+    )
     if carries_fermata and length in STRETCHABLE_REST_DURATIONS and length != meter_duration:
         message = (
             f"in bar {measure.number} music21 would stretch the fermata rest of {length} "
