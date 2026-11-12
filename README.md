@@ -28,7 +28,7 @@ Parts 1 and 2 go on the upper staff and parts 3 and 4 on the lower staff, each k
 ## Documentation
 
 * [Architecture](docs/architecture.md)
-* [Theoretical foundation](docs/theory/fessel_textural_model.md)
+* [Theoretical foundation](docs/theory/fessel_textural_model.md) and its [algorithmic decomposition](docs/theory/algorithmic_decomposition.md)
 * [Architecture decision records](docs/adr/)
 * [Specifications](docs/specs/)
 * [Domain glossary](docs/glossary.md)
