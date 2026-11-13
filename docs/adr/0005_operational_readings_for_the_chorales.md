@@ -19,7 +19,7 @@ For the chorales, and until a later ADR replaces any of them:
 4. **Doublings** (criteria from Fessel 2000, pp. 85 to 88; thresholds project). Two notated voices fuse into one line with density when at least 9/10 of the attacks of the sparser one coincide in onset with an attack of the other sharing a pitch class (unison or octave). Fusion is computed over the whole score and is transitive. Doublings at other intervals and intermediate +P nodes are not formed.
 5. **Each fused stream is a plane under the phrase's root** (project, this slice only).
 6. **P** is `+` when two or more planes are present (Fessel 1996, definition).
-7. **L**, at leaves only (restriction 4): `+` when, at every attack point of the plane, every voice of the plane that sounds also attacks and all attacked pitches are at the unison or octave (Fessel 1996, necessary conditions; the cutoff at the octave and the strict share are project settings).
+7. **L**, at leaves only (restriction 4): `+` when, at every attack point of the plane, every voice of the plane that sounds also attacks and all attacked pitches are at the unison, octave, fourth, fifth, third or sixth, and, where they are at intervals other than unison and octave, all pitches move in the same direction at nearly every step (Fessel 1996, p. 81, scale of closeness; Fessel 2000, p. 86, registral spacing of a line with relatively constant parallelism; the shares are project settings). Decided by Nico on November 12, 2026, instead of a cutoff at the octave.
 8. **D** (project reading of Fessel 1996, p. 83, to be confirmed by Nico): a tactus span diverges when two different components attack at different time points inside it; a component attacking alone, tied continuations and attacks in different tactus spans do not diverge; one divergent span makes the configuration `+D`; a root is also `+D` when one of its planes is.
 9. **H** (provisional, project): `+` when the phrase has one time signature and no part changes key signature inside it; otherwise `+` recorded as an assumption. Key signatures are not compared across parts.
 10. **C** (provisional, project): `+`, since the core model gives every plane the score's meter; phenomenal accents are not modeled.
@@ -32,7 +32,7 @@ All thresholds live in typed settings (`analysis/settings.py`) with name, unit a
 * **Fermatas are the chorales' own phrase marks**, and reading all voices makes the result independent of part order and of fermatas missing in some parts, both present in the corpus.
 * **The beat as tactus** is the simplest reading that gives Fessel's example 6 its `+D` (all four settings of the melody in the St Matthew Passion are `+D` in their first phrase) and still separates the fully homorhythmic phrases (78 of 2107 in the probe).
 * **Unison and octave doublings over the whole score** reproduce the doublings of the instrumentation found by the probe (Bass with Continuo in BWV 8.6 and BWV 248.59 6; Oboe 1, Violin 1 and Soprano in BWV 190.7) without joining voices that coincide only briefly.
-* **Strict linearity** applies Fessel's necessary conditions literally, so a non strict doubling appears as one plane that is not a single line instead of being hidden.
+* **Linearity follows Fessel's own scale of closeness**: Fessel 2000 (p. 86) treats parallel fourths, fifths, thirds and sixths with coinciding attacks as the registral spacing of one line, not as parallel lines, so cutting at the octave would contradict the model. The required attack coincidence stays strict, so a non strict doubling appears as one plane that is not a single line instead of being hidden.
 * **H and C as provisional rules** are honest about what the chorales can test: one key and one meter per phrase. Recording the rule lets a musician see where the reading is an assumption.
 
 ## Consequences
@@ -40,7 +40,7 @@ All thresholds live in typed settings (`analysis/settings.py`) with name, unit a
 * The chorale evaluation of spec 002 depends on these readings; changing any of them changes committed lists, which is visible in review.
 * Fusion of doublings brings only 2 of the 19 chorales with more than four parts to four planes; grand staff rendering of the others needs more than this ADR.
 * Non chorale repertoire needs its own local domain (bars or cadences), a real model of H and C, and probably segregation; each will be a new ADR.
-* Readings 8 and the strictness of 7 are open questions of spec 002 (section 8); Nico's answers may change them before this ADR is accepted.
+* Nico adopted readings 1 to 6 and 8 to 11 on November 12, 2026, and decided reading 7 as written above. The ADR becomes Accepted when spec 002 is approved.
 
 ## Alternatives considered
 

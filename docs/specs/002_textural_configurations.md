@@ -190,9 +190,16 @@ class DoublingSettings(BaseModel):
 
 
 class FeatureSettings(BaseModel):
-    # Interval classes in semitones modulo the octave. Simultaneous pitches inside one
-    # plane form one voice only at these intervals; 0 is unison or octave (Fessel 1996).
-    linear_interval_classes: frozenset[int] = frozenset({0})
+    # Interval classes in semitones modulo the octave at which simultaneous pitches of one
+    # plane can still form one voice: unison and octave (0), fourth and fifth (5, 7), thirds
+    # (3, 4) and sixths (8, 9), after Fessel's scale of closeness (1996, p. 81) and his
+    # registral spacing of a line (2000, p. 86).
+    linear_interval_classes: frozenset[int] = frozenset({0, 3, 4, 5, 7, 8, 9})
+    # Ratio from 0 to 1. Share of the steps between successive attack points of a plane,
+    # where it has simultaneous pitches other than unison and octave, at which all its
+    # pitches move in the same direction; Fessel 2000 (p. 86) asks that the parallelism
+    # be relatively constant.
+    minimum_parallel_motion_proportion: Fraction = Fraction(9, 10)
     # Ratio from 0 to 1. Share of the attack points of a plane at which the conditions of
     # linearity must hold for the plane to be +L; 1 is Fessel's necessary condition.
     minimum_linear_attack_proportion: Fraction = Fraction(1)
@@ -263,7 +270,7 @@ def segment_phrases(score: Score, settings: PhraseSegmentationSettings) -> tuple
 
 ### 3.5 Fusion of doublings (`analysis/doublings.py`, 002b)
 
-**Fessel 2000, pp. 85 to 88**: simultaneous sounds form one line with density when their attacks coincide strictly and they move preferably in parallel; timbre cannot decide it alone. Thresholds and the restriction to unison and octave are **project** decisions (ADR 0005).
+**Fessel 2000, pp. 85 to 88**: simultaneous sounds form one line with density when their attacks coincide strictly and they move preferably in parallel; timbre cannot decide it alone. Thresholds are **project** decisions (ADR 0005). Fusion of separate notated voices stays at unison and octave; the wider set of intervals applies to linearity inside a plane (section 3.6).
 
 ```python
 class FusedStream(BaseModel):
@@ -300,7 +307,7 @@ The **components** of a node are what can attack: at the root, its planes (the a
 
 **C, provisional rule.** `+` because every plane follows the score's single meter, which the core model guarantees. The explanation says that phenomenal accents, syncopation and hemiola are not modeled.
 
-**L at a leaf** (necessary conditions of Fessel 1996, pp. 79 to 83). At each attack point of the plane in the phrase, the conditions hold when (a) every notated voice of the plane that sounds at that point also attacks there, and (b) every pair of pitches attacked there, within and across divided events, is at an interval class in `linear_interval_classes`. The plane is `+L` when the share of attack points meeting both is at least `minimum_linear_attack_proportion`. The explanation names the first failing attack and the condition that failed. A single notated voice without divided events is always `+L`. The sufficient conditions (registral, timbral and dynamic continuity, formal variability) are research and out of scope.
+**L at a leaf** (necessary conditions of Fessel 1996, pp. 79 to 83). At each attack point of the plane in the phrase, the conditions hold when (a) every notated voice of the plane that sounds at that point also attacks there, and (b) every pair of pitches attacked there, within and across divided events, is at an interval class in `linear_interval_classes`. The plane is `+L` when the share of attack points meeting both is at least `minimum_linear_attack_proportion` and, if any of those attack points holds simultaneous pitches other than unison and octave, the share of steps between successive attack points at which all pitches move in the same direction (all up, all down or all repeated) is at least `minimum_parallel_motion_proportion`. Unison and octave need no parallel motion, since they are a registral duplication of one note (Fessel 2000, p. 86). The explanation names the first failing attack and the condition that failed. A single notated voice without divided events is always `+L`. The sufficient conditions (registral, timbral and dynamic continuity, formal variability) are research and out of scope.
 
 **D** (**operational reading from the corpus facts, to be confirmed by Nico**, ADR 0005). A tactus span of the phrase is divergent when two different components attack at different time points inside it. One component attacking while the others hold or rest is not divergence, since no one to one correspondence of attacks is needed (Fessel 1996, p. 83); attacks in different tactus spans never diverge. The node is `+D` when at least `minimum_divergent_tactus_spans` tactus spans are divergent. At the root, D is also `+` when some leaf is `+D`, because Fessel's D covers divergence within or between the planes (1996, p. 83); the explanation says which case applies. The explanation gives the count of divergent spans over the total and the first divergent span with the two components involved.
 
@@ -421,7 +428,7 @@ No change to `pyproject.toml`. `render/textural_schema.py` imports only `core/`,
 ### 002c: features, tree and command
 
 21. D: a homorhythmic synthetic phrase is `-D` at the root; adding one passing eighth to one voice makes it `+D`; a voice attacking alone while the others hold is not divergence; two voices attacking at different tactus spans are not divergence; a tied continuation is not an attack.
-22. L: a leaf of one notated voice without divided events is `+L` and `-D` by `RESTRICTION_5`; a leaf of two voices fused at the octave whose attacks all coincide is `+L`; a fused leaf in which one voice attacks while the other holds is `-L`, and its D is measured; a divided event at a fifth makes its leaf `-L` with the default settings.
+22. L: a leaf of one notated voice without divided events is `+L` and `-D` by `RESTRICTION_5`; a leaf of two voices fused at the octave whose attacks all coincide is `+L`; a fused leaf in which one voice attacks while the other holds is `-L`, and its D is measured; a divided event at a second makes its leaf `-L`; a succession of divided events in parallel thirds is `+L`, and the same thirds with the pitches moving in contrary motion are `-L` (synthetic).
 23. H at the root is `+` with `SINGLE_METER_AND_KEY` in a phrase with one time signature and no key change inside it, and `+` with `ASSUMED_OUTSIDE_CONDITIONS` in a synthetic phrase with a time signature change inside it; leaves get H and C by `RESTRICTION_2` and `RESTRICTION_3`.
 24. Every phrase of BWV 66.6 has a `+P` root with four leaves, `-P, +H, +L, +C, -D`, ordered Soprano, Alto, Tenor, Bass.
 25. A score with one plane in a phrase gives a single `-P` leaf as the configuration of that phrase.
@@ -484,7 +491,9 @@ Using `scores()` and `four_part_scores()` from `tests/strategies.py`, and a new 
 
 ## 6. Decisions
 
-Taken in this spec; the musical ones are recorded in ADR 0005 and are open to Nico's review (section 8).
+Taken in this spec; the musical ones are recorded in ADR 0005.
+
+Nico reviewed section 8 on November 12, 2026: he adopted the recommendations of questions 2 to 4 and 6 to 8, and decided question 5 against the recommendation. Linearity follows Fessel's scale of closeness instead of being limited to unison and octave: simultaneous pitches of one plane form a voice at the unison, octave, fourth, fifth, third or sixth, with coinciding attacks and relatively constant parallel motion (Fessel 1996, p. 81; Fessel 2000, p. 86). Question 7c is closed: restriction 2 restates restriction 1, as Fessel himself notes when he calls it obvious (1996, p. 81), so the transcription is consistent. Question 1 and questions 7a and 7b wait for Nico to check the 1996 PDF.
 
 1. **Plane and stratum** (**project**, grounded in Fessel 2000, p. 84, where the relations between strata are the H, C and D of 1996): the code calls the nodes below a `+P` configuration planes; "stratum" is kept for a plane with a characterization (line, pedal, ostinato), which a later spec adds.
 2. **Streams are notated voices** (**project**): the unit the analysis groups is one notated voice of one part; segregation is out of scope.
@@ -513,7 +522,7 @@ Facts this spec needs that the corpus facts of November 12 do not establish. The
 2. **Reading of D.** Is a tactus span divergent when two components attack at different time points inside it, with a single component attacking alone not counting, tied continuations not counting, and one divergent span enough to make the configuration `+D`? *Recommendation:* adopt it. It matches Fessel's "no one to one correspondence is needed" and his example 6, and it makes about 4 percent of the probe's phrases `-D`, which reads well as "fully homorhythmic". Also confirm that the root is `+D` when a plane is internally `+D` (divergence within planes).
 3. **Phrase segmentation.** Union of the fermata ends of all notated voices, clustered within one tactus, with the latest end as the boundary; music after the last fermata as a last phrase; a score without fermatas as one phrase. *Recommendation:* adopt it for the chorales; it is independent of part order and of fermatas missing in some parts. A score without fermatas needs a real segmentation (cadences, bars) in a later spec, not a guess here.
 4. **Fusion of doublings.** Fuse over the whole score rather than per phrase, at unison and octave only, when at least 9/10 of the attacks of the sparser voice coincide? *Recommendation:* yes for this slice. Per phrase fusion would join voices that share one note in a short phrase, and Fessel's strict coincidence (1 instead of 9/10) can be tried later by changing one setting.
-5. **Linearity of a doubled plane.** With the defaults, a fused plane whose doubling is not strict at every attack (a continuo adding a passing note under a held bass) is one plane that is `-L`, and its divergence is measured. And simultaneous pitches in one plane form a voice only at the unison or octave, not at the fifth or third of Fessel's ordering. *Recommendation:* keep both strict, as Fessel's necessary conditions; the evaluation lists every non strict doubling, so the decision can be revisited with examples.
+5. **Linearity of a doubled plane.** With the defaults, a fused plane whose doubling is not strict at every attack (a continuo adding a passing note under a held bass) is one plane that is `-L`, and its divergence is measured. And simultaneous pitches in one plane form a voice only at the unison or octave, not at the fifth or third of Fessel's ordering. *Recommendation:* keep both strict, as Fessel's necessary conditions; the evaluation lists every non strict doubling, so the decision can be revisited with examples. *Decided by Nico:* the doubling stays strict, and linearity inside a plane follows Fessel's scale (section 6).
 6. **H and C provisional rules.** H is `+` with one time signature and no key signature change in any part inside the phrase, without comparing key signatures across parts; C is `+` because all planes share the meter. Outside its conditions H is `+` as a recorded assumption. *Recommendation:* adopt them as provisional; the alternative for H outside its conditions, refusing to decide, would leave phrases without a valid tree.
 7. **Notation and transcription** (against the 1996 PDF). (a) Does Fessel print identical sibling configurations once, as example 6 suggests, so the compact form should collapse them? (b) What is his indentation and closing bracket convention on p. 84, so the indented form can follow it? (c) As transcribed, restriction 1 (`-H` implies `+P`) and restriction 2 (`-P` implies `+H`) are the same statement; is the transcription of restriction 2 exact? *Recommendation:* collapse identical siblings in the compact form and keep every leaf in the indented form; adjust the indentation to p. 84 before 002a; if restriction 2 is different, this spec is corrected before approval.
 8. **Plane and stratum.** Treat Fessel's plane (1996) and stratum (2000) as the same domain, with "plane" for the nodes of the tree and "stratum" reserved for a characterized plane? *Recommendation:* yes; it is consistent with the 2000 article's relations being the 1996 features, and it keeps the glossary's existing entries meaningful.
