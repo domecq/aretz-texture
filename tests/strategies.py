@@ -25,6 +25,14 @@ from aretz_texture.core.score import (
     Score,
     TimeSignatureChange,
 )
+from aretz_texture.core.texture import (
+    DecisionRule,
+    FeatureDecision,
+    StreamReference,
+    TexturalConfiguration,
+    TexturalFeatures,
+    TimeSpan,
+)
 
 # (numerator, denominator) pairs of the meters the properties use.
 METERS = [(2, 4), (3, 4), (4, 4), (3, 2)]
@@ -261,3 +269,84 @@ def scores() -> st.SearchStrategy[Score]:
 def four_part_scores() -> st.SearchStrategy[Score]:
     """Generate scores that the grand staff accepts: four parts, one voice, one shared key."""
     return _scores(st.just(4), st.just(1), same_key_in_every_part=True)
+
+
+MAX_TEXTURAL_DEPTH = 3
+MAX_TEXTURAL_SPAN_END = 64
+MAX_CHILDREN = 3
+MAX_STREAMS_PER_LEAF = 3
+
+
+def _decision_of(draw: DrawFn, value: bool | None) -> FeatureDecision:
+    rule = draw(st.sampled_from(list(DecisionRule)))
+    return FeatureDecision(value=value, rule=rule, explanation=draw(st.text(max_size=20)))
+
+
+def _features_of(
+    draw: DrawFn, values: tuple[bool, bool, bool | None, bool, bool]
+) -> TexturalFeatures:
+    planes, homogeneity, linearity, accent_coincidence, attack_divergence = values
+    return TexturalFeatures(
+        planes=_decision_of(draw, planes),
+        homogeneity=_decision_of(draw, homogeneity),
+        linearity=_decision_of(draw, linearity),
+        accent_coincidence=_decision_of(draw, accent_coincidence),
+        attack_divergence=_decision_of(draw, attack_divergence),
+    )
+
+
+def _inner_span(draw: DrawFn, parent: TimeSpan) -> TimeSpan:
+    onset = draw(st.integers(min_value=int(parent.onset), max_value=int(parent.end) - 1))
+    end = draw(st.integers(min_value=onset + 1, max_value=int(parent.end)))
+    return TimeSpan(onset=Fraction(onset), end=Fraction(end))
+
+
+def _leaf(draw: DrawFn, span: TimeSpan, next_part_number: list[int]) -> TexturalConfiguration:
+    # The three valid -P combinations: +L with -D, then -L with +D or with -D.
+    linearity, attack_divergence = draw(
+        st.sampled_from([(True, False), (False, True), (False, False)])
+    )
+    features = _features_of(draw, (False, True, linearity, True, attack_divergence))
+    streams: list[StreamReference] = []
+    for _ in range(draw(st.integers(min_value=1, max_value=MAX_STREAMS_PER_LEAF))):
+        next_part_number[0] += 1
+        streams.append(
+            StreamReference(
+                part_number=next_part_number[0],
+                voice_number=draw(st.integers(min_value=1, max_value=2)),
+                part_name=draw(NAMES),
+            )
+        )
+    return TexturalConfiguration(span=span, features=features, children=(), streams=tuple(streams))
+
+
+def _node(
+    draw: DrawFn, span: TimeSpan, depth: int, next_part_number: list[int]
+) -> TexturalConfiguration:
+    if depth >= MAX_TEXTURAL_DEPTH or draw(st.booleans()):
+        return _leaf(draw, span, next_part_number)
+    child_count = draw(st.integers(min_value=2, max_value=MAX_CHILDREN))
+    children = tuple(
+        _node(draw, _inner_span(draw, span), depth + 1, next_part_number)
+        for _ in range(child_count)
+    )
+    homogeneity, accent_coincidence, attack_divergence = (
+        draw(st.booleans()),
+        draw(st.booleans()),
+        draw(st.booleans()),
+    )
+    features = _features_of(draw, (True, homogeneity, None, accent_coincidence, attack_divergence))
+    return TexturalConfiguration(span=span, features=features, children=children, streams=())
+
+
+@st.composite
+def textural_configurations(draw: DrawFn) -> TexturalConfiguration:
+    """Return a valid tree of textural configurations, up to three levels deep.
+
+    A root that is a single leaf is possible, as in a phrase with one plane. Every leaf has
+    its own part numbers, so no stream is in two leaves.
+    """
+    onset = draw(st.integers(min_value=0, max_value=MAX_TEXTURAL_SPAN_END - 1))
+    end = draw(st.integers(min_value=onset + 1, max_value=MAX_TEXTURAL_SPAN_END))
+    span = TimeSpan(onset=Fraction(onset), end=Fraction(end))
+    return _node(draw, span, 1, [0])
