@@ -1,7 +1,7 @@
 # ADR 0005: operational readings of Fessel's features and phrase segmentation for the chorales
 
 Date: November 12, 2026
-Status: Proposed
+Status: Accepted, November 24, 2026
 
 ## Context
 
@@ -40,7 +40,7 @@ All thresholds live in typed settings (`analysis/settings.py`) with name, unit a
 * The chorale evaluation of spec 002 depends on these readings; changing any of them changes committed lists, which is visible in review.
 * Fusion of doublings brings only 2 of the 19 chorales with more than four parts to four planes; grand staff rendering of the others needs more than this ADR.
 * Non chorale repertoire needs its own local domain (bars or cadences), a real model of H and C, and probably segregation; each will be a new ADR.
-* Nico adopted readings 1 to 6 and 8 to 11 on November 12, 2026, and decided reading 7 as written above. The ADR becomes Accepted when spec 002 is approved.
+* Nico adopted readings 1 to 6 and 8 to 11 on November 12, 2026, and decided reading 7 as written above. Nico approved spec 002, and with it this ADR, on November 24, 2026.
 
 ## Alternatives considered
 
