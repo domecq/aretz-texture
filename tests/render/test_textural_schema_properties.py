@@ -65,11 +65,13 @@ def test_compact_form_has_balanced_brackets(tree: TexturalConfiguration) -> None
 
 
 @given(textural_configurations())
-def test_indented_form_has_balanced_brackets_with_every_leaf_on_its_own_line(
-    tree: TexturalConfiguration,
-) -> None:
+def test_indented_form_has_balanced_brackets(tree: TexturalConfiguration) -> None:
+    assert is_balanced(format_textural_schema(analysis_of(tree)))
+
+
+@given(textural_configurations())
+def test_indented_form_writes_every_leaf_on_its_own_line(tree: TexturalConfiguration) -> None:
     lines = format_textural_schema(analysis_of(tree)).splitlines()
-    assert is_balanced("\n".join(lines))
     filler_leaves = 0 if tree.span.onset == 0 else 1
     leaf_lines = [line for line in lines if "(part " in line]
     assert len(leaf_lines) == len(tree.leaves()) + filler_leaves
