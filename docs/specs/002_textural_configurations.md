@@ -1,6 +1,6 @@
 # Spec 002: textural configurations of the chorales
 
-Issue: to be opened from the scope agreed with Nico on November 12, 2026
+Issue: #17
 Status: Approved by Nico, November 24, 2026 (gate 1)
 Related: ADR 0004 (Fessel's textural model), ADR 0005 (operational readings for the chorales, Accepted), `docs/theory/algorithmic_decomposition.md`, `docs/theory/fessel_textural_model.md`
 
