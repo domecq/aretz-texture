@@ -54,7 +54,7 @@ Fessel treats configurations as local and almost instantaneous (1996, p. 90) but
 
 Start from the events of each notated voice. Two refinements come from the 2000 article:
 
-* **Fusion of doublings**: units whose attacks coincide strictly and that move in parallel (unison, octave and, with less weight, fifth, fourth, third and sixth) become one line with density. In the corpus this covers the instruments that double the voices in the 19 chorales with more than four parts.
+* **Fusion of doublings**: units whose attacks coincide strictly and that move in parallel (unison, octave and, with less weight, fifth, fourth, third and sixth) become one line with density. In the corpus this collapses the instruments that double a voice in some of the 19 chorales with more than four parts. It must not merge genuinely independent voices or obbligato instruments: those are distinct strata, and identifying them is the point of the model.
 * **Stream segregation**: one notated voice can hold more than one line when its intervals are discontinuous (virtual polyphony). Detecting it is research, and the chorales barely need it.
 
 ### 3. Measuring the factors (factors from Fessel 2000, measures are project decisions)
@@ -98,13 +98,13 @@ Detect over time the appearance, disappearance, division, fusion or reorganizati
 
 ### 8. Outputs (project decision, ADR 0004)
 
-The textural schema, written in Fessel's own notation and as a readable tree, and the four voice harmonic reduction, both rendered from the same analysis. The analysis records which factors decided each grouping and feature, since Fessel (2000, p. 88) values identifying those factors more than the binary decision.
+The four voice harmonic reduction, which is the product, and, as an annex, the textural schema written in Fessel's own notation and as a readable tree, both rendered from the same analysis. The analysis records which factors decided each grouping and feature, since Fessel (2000, p. 88) values identifying those factors more than the binary decision.
 
 ## 3. What this says about scope
 
-* **Fessel gives a ground truth for the corpus**: a chorale phrase is `[+P, +H, +C, +D [-P, +H, +L, +C, -D]]` (1996, p. 86). A first spec can compute the tree for every phrase of the 350 chorales and compare it with that representation, the same way 001c compares the round trip.
+* **Fessel gives a reference for the corpus**: his example 6, the first phrase of a chorale, is `[+P, +H, +C, +D [-P, +H, +L, +C, -D]]` (1996, p. 86). A first spec can compute the tree for every phrase of the 350 chorales and compare it with that representation, the same way 001c compares the round trip, listing the phrases that differ (fully homorhythmic phrases, for example, are `-D` at the root).
 * **Measurable now from the existing model**: steps 1, 3 and the features P, L and D. H and C need simple rules that hold for the chorales (one key, one meter) and real models later.
-* **Fusion of doublings** would let the 19 chorales with more than four parts reach four planes and, with them, the grand staff.
+* **Fusion of doublings** collapses real doublings, not independent voices, so it brings only some of the 19 chorales with more than four parts to four planes. The others keep more than four planes because their texture has them: obbligato instruments, or five real voices as in BWV 27.6, with its two soprano parts (journal of November 7, 2026). Reducing them to four voices is a decision of the reduction, taken on the strata the analysis identified, not something fusion should force.
 * **Research**: the weights of step 4, stream segregation, a model of phenomenal accents for C and the characterization of step 6.
 * **The chorales are a poor corpus for texture variety**: they validate the measures and the feature rules, but calibrating the grouping needs other public domain repertoire, such as Romantic piano music, Haydn or Mozart.
 
