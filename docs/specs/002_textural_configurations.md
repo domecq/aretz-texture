@@ -58,7 +58,7 @@ src/aretz_texture/analysis/settings.py        PhraseSegmentationSettings, Doubli
                                               FeatureSettings, TexturalAnalysisSettings
 src/aretz_texture/analysis/metric_grid.py     tactus_duration, tactus_spans
 src/aretz_texture/analysis/attacks.py         Attack, voice_attacks
-src/aretz_texture/analysis/phrases.py         FermataEndCluster, fermata_end_clusters, segment_phrases
+src/aretz_texture/analysis/phrases.py         FermataCluster, fermata_clusters, segment_phrases
 src/aretz_texture/analysis/doublings.py       FusedStream, coinciding_attack_proportion, fuse_doublings
 src/aretz_texture/analysis/features.py        one decision function per feature
 src/aretz_texture/analysis/texture.py         analyze_texture
@@ -136,7 +136,7 @@ class TexturalConfiguration(BaseModel):
 
 
 class PhraseClosing(StrEnum):
-    FERMATA = "fermata"  # ends at a fermata end cluster
+    FERMATA = "fermata"  # ends at a fermata cluster
     SCORE_END = "score_end"  # the music after the last fermata
     NO_FERMATAS = "no_fermatas"  # the whole score, which has no fermata
 
@@ -173,10 +173,6 @@ Every threshold lives here, frozen, with its unit and one line of musical meanin
 
 ```python
 class PhraseSegmentationSettings(BaseModel):
-    # Tactus spans. Fermata ends of different notated voices closer than this mark one
-    # phrase end, so a fermata written on a slightly longer note in one voice does not
-    # create a phrase of a single beat.
-    fermata_alignment_tolerance: Fraction = Fraction(1)
     # Notated voices. How many notated voices must carry a fermata in a cluster for it
     # to end a phrase; 1 means any voice, so a missing fermata in other parts is harmless.
     minimum_fermata_voices: int = 1
@@ -229,6 +225,7 @@ def tactus_spans(score: Score, span: TimeSpan) -> tuple[TimeSpan, ...]: ...
 * The tactus is the beat of the time signature: `4 / denominator` quarter lengths, or `3 * 4 / denominator` (a dotted beat) when the numerator is 6, 9 or 12 (`COMPOUND_METER_NUMERATORS`, a named constant of music theory, not a setting). In the corpus: 1 for 4/4 and 3/4, 2 for 3/2, 3/2 for 12/8.
 * Tactus spans tile each bar from its onset, using the time signature in effect at the bar. A first bar shorter than its meter (a pickup bar) is tiled from its end backwards, so its tactus spans fall on the last beats of a virtual complete bar; the first span may be shorter. Any other short bar is tiled from its onset, and its last span may be shorter. `tactus_spans` returns the spans that overlap `span`, clipped to it.
 * For labels, tactus spans are numbered from 1 within the virtual complete bar, so the pickup of BWV 66.6, whose first note music21 reports on beat 4 (spec 001, section 8), is "bar 0, tactus 4".
+* A bar split in two pieces with the same number (a repeat barline inside a bar, in 209 chorales) is one virtual complete bar for labels: the second piece continues the numbering of the first, so after a first piece of two quarters in 4/4 the second piece starts at tactus 3. Every piece of the corpus starts on the tactus grid of its virtual bar (verified November 24, 2026), so tiling each piece from its onset gives the same spans.
 
 **Attacks** (**project**):
 
@@ -247,25 +244,26 @@ An attack is a note event whose onset lies in the span, keeping only the pitches
 **Phrases** (**project**, not Fessel: Fessel treats configurations as local, 1996, p. 90, but does not formalize the domain; ADR 0005):
 
 ```python
-class FermataEndCluster(BaseModel):
+class FermataCluster(BaseModel):
+    span: TimeSpan  # from the earliest fermata onset to the latest fermata end
     boundary: Fraction  # the latest fermata end of the cluster: where the phrase ends
     ends: tuple[Fraction, ...]  # every distinct fermata end in the cluster, ascending
     streams: tuple[StreamReference, ...]  # the notated voices that carry them
 
 
-def fermata_end_clusters(
+def fermata_clusters(
     score: Score,
     settings: PhraseSegmentationSettings,
-) -> tuple[FermataEndCluster, ...]: ...
+) -> tuple[FermataCluster, ...]: ...
 
 
 def segment_phrases(score: Score, settings: PhraseSegmentationSettings) -> tuple[Phrase, ...]: ...
 ```
 
-1. Collect the fermata ends of **every notated voice of every part**: the end of each event with `fermata` true and the end of each rest fermata. No part is privileged, so the result does not depend on part order (corpus facts: in BWV 248.9 1, BWV 190.7 and BWV 248.23 2 part 1 has no fermata, and in 56 chorales the fermata ends of the first four parts disagree).
-2. Sort the ends and cluster them: a cluster starts at its earliest end and takes every following end closer than `fermata_alignment_tolerance` tactus spans (tactus of the bar containing the earliest end). The boundary of the cluster is its latest end, so every fermata note of the cluster belongs to the phrase it closes.
+1. Collect the fermatas of **every notated voice of every part**: the time span of each event with `fermata` true and of each rest fermata. No part is privileged, so the result does not depend on part order (corpus facts: in BWV 248.9 1 and BWV 190.7 part 1 has no fermata, and in 58 chorales some notated voice has no fermata in a cluster where others do).
+2. Cluster the fermatas whose time spans overlap, transitively: sorted by onset, a fermata joins the current cluster when it starts before the latest end of the cluster so far. Fermatas that sound at the same time are one stop, however each voice writes it: in BWV 320, bar 2, soprano, alto and tenor hold the fermata on a dotted half while the bass has it on a quarter and walks on below. The boundary of the cluster is its latest end, so every fermata note of the cluster belongs to the phrase it closes. Fermatas that only touch (one ends where the next starts) are separate clusters.
 3. A cluster ends a phrase when at least `minimum_fermata_voices` distinct notated voices contribute to it.
-4. Phrases run between consecutive boundaries from 0. When the last boundary is before the end of the score, the remaining music is a last phrase with closing `SCORE_END`; a boundary at the end of the score closes the last phrase with `FERMATA`.
+4. Phrases run between consecutive boundaries from 0. When the last boundary is before the end of the score and some notated voice attacks after it, that music is a last phrase with closing `SCORE_END`. When nothing attacks after the last boundary (only rests follow), the remainder joins the last phrase, which closes with `FERMATA` and ends at the end of the score; a phrase without attacks would have no plane. A boundary at the end of the score closes the last phrase with `FERMATA`.
 5. **Fallback**: a score without any fermata is one phrase covering the whole score, closing `NO_FERMATAS`.
 
 ### 3.5 Fusion of doublings (`analysis/doublings.py`, 002b)
@@ -369,7 +367,7 @@ class ChoraleTexture(BaseModel):
     identifier: str
     part_count: int
     fused_streams: tuple[FusedStream, ...]
-    fermata_end_clusters: tuple[FermataEndCluster, ...]
+    fermata_clusters: tuple[FermataCluster, ...]
     analysis: TexturalAnalysis
 
 
@@ -395,7 +393,7 @@ No change to `pyproject.toml`. `render/textural_schema.py` imports only `core/`,
 
 ### 3.11 Data flow
 
-`cli`: `ingest.sources.read_score` gives the `Score`; `analysis.texture.analyze_texture` gives the `TexturalAnalysis` (phrases, then fused streams, then per phrase the leaves and the root); `render.textural_schema.format_textural_schema` gives the text; `cli` writes it. The evaluation runs the same chain per chorale and also keeps the fused streams and fermata end clusters for its lists.
+`cli`: `ingest.sources.read_score` gives the `Score`; `analysis.texture.analyze_texture` gives the `TexturalAnalysis` (phrases, then fused streams, then per phrase the leaves and the root); `render.textural_schema.format_textural_schema` gives the text; `cli` writes it. The evaluation runs the same chain per chorale and also keeps the fused streams and fermata clusters for its lists.
 
 ## 4. Acceptance criteria
 
@@ -416,10 +414,10 @@ No change to `pyproject.toml`. `render/textural_schema.py` imports only `core/`,
 10. `tactus_duration` returns 1 for 4/4 and 3/4, 2 for 3/2 and 2/2, 3/2 for 12/8 and 6/8.
 11. `tactus_spans` of a 4/4 score with a pickup of one quarter returns `[0, 1)` for the pickup, labeled tactus 4 of bar 0, and then spans from the onset of bar 1; a pickup of three eighths gives a first span of one eighth; a final short bar is tiled from its onset.
 12. `voice_attacks` skips events whose pitches all continue a tie, keeps only the newly attacked pitches of a divided event, and ignores grace notes and rest fermatas.
-13. Fermata ends of all notated voices are used: for BWV 248.9 1, BWV 190.7 and BWV 248.23 2, whose part 1 has no fermata, `segment_phrases` returns more than one phrase.
+13. Fermatas of all notated voices are used: for BWV 248.9 1 and BWV 190.7, whose part 1 has no fermata, `segment_phrases` returns more than one phrase.
 14. Permuting the parts of a score does not change `segment_phrases` (hypothesis property, section 5).
-15. Two fermata ends less than one tactus apart in different voices make one phrase end at the later one; ends exactly one tactus apart make two (synthetic).
-16. Music after the last fermata forms a last phrase closing `SCORE_END`; a score without fermatas is one phrase closing `NO_FERMATAS`; phrase bar numbers are those of the bars containing the onset and the last moment before the end.
+15. Overlapping fermatas in different voices make one phrase end at the latest end: in BWV 320, bar 2, the bass fermata on a quarter and the others on a dotted half end one phrase, with no phrase of one or two beats between them; two fermatas that only touch make two phrase ends (synthetic). Over the corpus, no phrase lasts two tactus spans or less (slow).
+16. Music with attacks after the last fermata forms a last phrase closing `SCORE_END` (BWV 248.9 1, bars 13 to 15); rests alone after the last fermata join the last phrase, which ends at the end of the score (BWV 330, 424, 374, 261, 248.42 4); a score without fermatas is one phrase closing `NO_FERMATAS` (BWV 248.23 2, the only one in the corpus); phrase bar numbers are those of the bars containing the onset and the last moment before the end.
 17. `fuse_doublings` fuses Bass and Continuo in BWV 8.6 and in BWV 248.59 6 and leaves the other notated voices alone, so each has four fused streams.
 18. In BWV 190.7, Oboe 1, Violin 1 and Soprano form one fused stream, Violin 2 and Alto another, Viola and Tenor another, Bass and Continuo another, and the remaining notated voices stay alone: 10 fused streams from 15 parts.
 19. BWV 27.6 has five fused streams, one per part; no four part chorale fuses two of its voices (slow).
@@ -455,7 +453,7 @@ Verified by the main session on November 12, 2026 (music21 10.5.2), over the 350
 * Meters: 4/4 in 313 chorales, 3/4 in 38, 3/2 in 2, 12/8 in 1 (a chorale may have more than one).
 * With a probe rule that read fermatas only in part 1, notated voice 1, three chorales (BWV 248.9 1, BWV 190.7, BWV 248.23 2) have no fermata there, and in 56 the fermata ends of the first four parts disagree (for example BWV 145.5, BWV 153.5, BWV 363, BWV 352, BWV 244.37, BWV 91.6, BWV 291, BWV 36.4 2). That probe found 2107 phrases in 347 chorales.
 * With the reading of D of section 3.6, 2029 of those phrases are `+D` and 78 are `-D`; 305 chorales are `+D` in every phrase and 42 have at least one `-D` phrase, for example BWV 17.7, BWV 65.2 and BWV 184.5. The probe numbered phrases from 0: in this spec's numbering, BWV 17.7 phrases 1, 3, 5, 7 and 8, BWV 65.2 phrases 1 to 4 and BWV 184.5 phrase 3 are `-D`.
-* With fusion at 9/10 over the whole score, only BWV 8.6 and BWV 248.59 6 of the 19 chorales with more than four parts reduce to four groups (Bass with Continuo). BWV 190.7 goes from 15 streams to 10 groups, BWV 248.42 4 from 12 to 8, BWV 248.9 1 from 8 to 7; BWV 112.5, BWV 251 and BWV 252 have one doubling each (a cornet or horn with the soprano). The rest have none: obbligato instruments in BWV 91.6, 29.8, 19.7, 41.6, 250, 70.11, 136.6, 172.6, 161.6 and 248.23 2, and five real voices in BWV 27.6. BWV 41.6 already encodes voice and instruments in single parts.
+* With fusion at 9/10 over the whole score, only BWV 8.6 and BWV 248.59 6 of the 19 chorales with more than four parts reduce to four groups (Bass with Continuo). BWV 190.7 goes from 15 streams to 10 groups, BWV 248.42 4 from 12 to 9 (probe of November 24, 2026), BWV 248.9 1 from 8 to 7; BWV 112.5, BWV 251 and BWV 252 have one doubling each (a cornet or horn with the soprano). The rest have none: obbligato instruments in BWV 91.6, 29.8, 19.7, 41.6, 250, 70.11, 136.6, 172.6, 161.6 and 248.23 2, and five real voices in BWV 27.6. BWV 41.6 already encodes voice and instruments in single parts.
 * **Consequence, stated plainly:** fusing doublings does not bring 17 of the 19 to four planes, so this spec does not promise grand staff rendering for them. They are the corpus's only textures with more than four planes or with planes of different kinds, and the tests use them as such.
 * All four St Matthew Passion settings of the melody (BWV 244.15, 244.44, 244.54, 244.62) have a `+D` first phrase under that reading.
 
@@ -466,8 +464,8 @@ Because this spec's phrase rule reads every voice, its phrases differ from the p
 * **BWV 244.54, phrase 1**: example 6 (criterion 31); also BWV 244.15, 244.44 and 244.62 phrase 1 are `+D`, as the probe found.
 * **BWV 66.6**: every phrase four lines, ordered Soprano to Bass (criterion 24); the pickup as tactus 4 of bar 0 in an explanation (criterion 11); the command (criterion 27).
 * **BWV 17.7, BWV 65.2, BWV 184.5**: `-D` roots at the phrases listed above, if this spec's phrases coincide there with the probe's (to verify in 002b; the test names the phrase by its bars).
-* **BWV 248.9 1, BWV 190.7, BWV 248.23 2**: phrases found without fermatas in part 1 (criterion 13). BWV 248.9 1 also has divided events: the test asserts the L of the leaf that holds them, whatever the interval turns out to be (to verify).
-* **BWV 145.5 and BWV 153.5**: fermata ends that disagree across parts; the test asserts one phrase end per cluster and the bars where they disagree.
+* **BWV 248.9 1, BWV 190.7**: phrases found without fermatas in part 1 (criterion 13). **BWV 248.23 2**: no fermata at all, one phrase (criterion 16). BWV 248.9 1 also has divided events: the test asserts the L of the leaf that holds them, whatever the interval turns out to be (to verify).
+* **BWV 320, BWV 153.5, BWV 29.8, BWV 375, BWV 392**: one voice ends its fermata one or two beats before the others, which still hold theirs; one phrase end per overlapping cluster (criterion 15). **BWV 41.6 (bar 32) and BWV 357 (bar 10)**: fermata ends half a beat apart in one cluster.
 * **BWV 8.6, BWV 248.59 6**: four planes, with Bass and Continuo as one leaf of density 2 (criteria 17 and 24 style).
 * **BWV 190.7**: the fused groups of criterion 18; phrases with up to 10 planes; trumpets and timpani as separate planes.
 * **BWV 27.6**: five planes of density 1 (criterion 19).
@@ -497,7 +495,7 @@ Nico reviewed section 8 on November 12, 2026: he adopted the recommendations of 
 
 1. **Plane and stratum** (**project**, grounded in Fessel 2000, p. 84, where the relations between strata are the H, C and D of 1996): the code calls the nodes below a `+P` configuration planes; "stratum" is kept for a plane with a characterization (line, pedal, ostinato), which a later spec adds.
 2. **Streams are notated voices** (**project**): the unit the analysis groups is one notated voice of one part; segregation is out of scope.
-3. **Phrases** by clustered fermata ends of every notated voice, with the fallback of section 3.4 (**project**, ADR 0005).
+3. **Phrases** by clusters of overlapping fermatas of every notated voice, with rests after the last fermata joined to the last phrase and the fallback of section 3.4 (**project**, ADR 0005). Nico replaced the one tactus tolerance by overlap and added the rule for trailing rests on November 24, 2026, after the corpus probe of that day: with them the corpus has 2143 phrases and none of two tactus spans or less.
 4. **Tactus** is the beat of the time signature, with tactus spans on the bar grid (**project**, ADR 0005).
 5. **Fusion** over the whole score, unison and octave only, threshold 9/10 (**project** thresholds on **Fessel 2000** criteria, ADR 0005).
 6. **Every fused stream is a plane under the root** (**project**, this slice only).
@@ -510,8 +508,8 @@ Nico reviewed section 8 on November 12, 2026: he adopted the recommendations of 
 
 Facts this spec needs that the corpus facts of November 12 do not establish. The implementer checks each with the explorer or a probe and reports it in the PR; none should change the design, and any that does comes back to this spec.
 
-1. **Which chorale has no fermata at all.** Spec 001 (section 8) counted note fermatas in 349 of 350 chorales; that one chorale exercises the fallback. (002b)
-2. **What the 56 disagreements look like**: fermata ends a fraction of a beat apart, or fermatas missing in some parts. This decides whether the one tactus tolerance absorbs them. (002b)
+1. **Which chorale has no fermata at all.** Answered November 24, 2026: BWV 248.23 2. (002b)
+2. **What the 56 disagreements look like.** Answered November 24, 2026: mostly fermatas missing in some parts (58 chorales), harmless with `minimum_fermata_voices` at 1; two clusters with ends half a beat apart (BWV 41.6, BWV 357); and seven places in five chorales where one voice ends its fermata one or two beats before the others. The tolerance of one tactus split those seven into phrases of one or two beats, so the rule became overlap (section 3.4, section 6). (002b)
 3. **Phrases in four part chorales where a voice does not attack**, which would give fewer than four planes and appear in the exceptions list. (002d)
 4. **Time signature or key signature changes inside a phrase**, which make H an assumption. (002c)
 5. **The intervals of the divided events of BWV 248.9 1**, which decide the L of that leaf. (002c)
@@ -521,7 +519,7 @@ Facts this spec needs that the corpus facts of November 12 do not establish. The
 
 1. **Example 6.** Is Fessel's example 6 (1996, p. 86) the first phrase of `bach/bwv244.54`? The corpus has four settings of the melody in the St Matthew Passion with the same encoded first words; No. 54 is the one traditionally titled "O Haupt voll Blut und Wunden". *Recommendation:* check the music printed on p. 86 against BWV 244.54 bars 1 to the first fermata; if it matches, the test uses it, otherwise give the identifier. *Decided by Nico:* it is BWV 244.54.
 2. **Reading of D.** Is a tactus span divergent when two components attack at different time points inside it, with a single component attacking alone not counting, tied continuations not counting, and one divergent span enough to make the configuration `+D`? *Recommendation:* adopt it. It matches Fessel's "no one to one correspondence is needed" and his example 6, and it makes about 4 percent of the probe's phrases `-D`, which reads well as "fully homorhythmic". Also confirm that the root is `+D` when a plane is internally `+D` (divergence within planes).
-3. **Phrase segmentation.** Union of the fermata ends of all notated voices, clustered within one tactus, with the latest end as the boundary; music after the last fermata as a last phrase; a score without fermatas as one phrase. *Recommendation:* adopt it for the chorales; it is independent of part order and of fermatas missing in some parts. A score without fermatas needs a real segmentation (cadences, bars) in a later spec, not a guess here.
+3. **Phrase segmentation.** Union of the fermata ends of all notated voices, clustered within one tactus, with the latest end as the boundary; music after the last fermata as a last phrase; a score without fermatas as one phrase. *Recommendation:* adopt it for the chorales; it is independent of part order and of fermatas missing in some parts. A score without fermatas needs a real segmentation (cadences, bars) in a later spec, not a guess here. *Changed by Nico on November 24, 2026:* overlapping fermatas instead of the one tactus tolerance, and rests alone after the last fermata join the last phrase (section 6, decision 3).
 4. **Fusion of doublings.** Fuse over the whole score rather than per phrase, at unison and octave only, when at least 9/10 of the attacks of the sparser voice coincide? *Recommendation:* yes for this slice. Per phrase fusion would join voices that share one note in a short phrase, and Fessel's strict coincidence (1 instead of 9/10) can be tried later by changing one setting.
 5. **Linearity of a doubled plane.** With the defaults, a fused plane whose doubling is not strict at every attack (a continuo adding a passing note under a held bass) is one plane that is `-L`, and its divergence is measured. And simultaneous pitches in one plane form a voice only at the unison or octave, not at the fifth or third of Fessel's ordering. *Recommendation:* keep both strict, as Fessel's necessary conditions; the evaluation lists every non strict doubling, so the decision can be revisited with examples. *Decided by Nico:* the doubling stays strict, and linearity inside a plane follows Fessel's scale (section 6).
 6. **H and C provisional rules.** H is `+` with one time signature and no key signature change in any part inside the phrase, without comparing key signatures across parts; C is `+` because all planes share the meter. Outside its conditions H is `+` as a recorded assumption. *Recommendation:* adopt them as provisional; the alternative for H outside its conditions, refusing to decide, would leave phrases without a valid tree.
