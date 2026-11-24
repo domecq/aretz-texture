@@ -81,15 +81,16 @@ def node_of(
     return TexturalConfiguration(span=span, features=features, children=children, streams=())
 
 
-def four_lines() -> TexturalConfiguration:
+def four_lines(span: TimeSpan = PHRASE_SPAN) -> TexturalConfiguration:
     """Return Fessel's example 6: four lines of one chorale phrase, Soprano to Bass."""
     names = ("Soprano", "Alto", "Tenor", "Bass")
     return node_of(
         root_features(),
         *(
-            leaf_of(line_features(), stream(number, 1, name))
+            leaf_of(line_features(), stream(number, 1, name), span=span)
             for number, name in enumerate(names, 1)
         ),
+        span=span,
     )
 
 
