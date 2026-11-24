@@ -4,7 +4,7 @@ Single source of conventions for all agents (Claude Code, Codex, Cursor) and for
 
 ## Project
 
-Aretz Texture (`aretz_texture`): an analysis tool that describes how the texture of a MusicXML score is organized and reduces its harmonic structure to four voices, with two rhythmic modes and several granularity levels. The analysis is based on Pablo Fessel's model of textural strata (ADR 0004); musical decisions must be consistent with `docs/theory/fessel_textural_model.md`. Free and open source under the MIT License (ADR 0001). Named in honor of Isabel Aretz, composer and ethnomusicologist.
+Aretz Texture (`aretz_texture`): an analysis tool that reduces the harmonic structure of a MusicXML score to four voices, with two rhythmic modes and several granularity levels. The reduction is the product; it rests on a textural analysis based on Pablo Fessel's model of textural strata (ADR 0004), whose schema in Fessel's notation is an annex; musical decisions must be consistent with `docs/theory/fessel_textural_model.md`. Free and open source under the MIT License (ADR 0001). Named in honor of Isabel Aretz, composer and ethnomusicologist.
 
 * Architecture: `docs/architecture.md`
 * Decisions: `docs/adr/`

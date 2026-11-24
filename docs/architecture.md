@@ -1,10 +1,10 @@
 # Aretz Texture: architecture
 
-Version 0.5, November 2026. Living document: every new decision is recorded as an ADR in `docs/adr/` and summarized here.
+Version 0.6, November 2026. Living document: every new decision is recorded as an ADR in `docs/adr/` and summarized here.
 
 ## 1. Goal
 
-Analysis tool for musicians that takes a score and shows how its texture is organized and the harmonic structure supporting it. The analysis is based on Pablo Fessel's model of textural strata (ADR 0004, `docs/theory/fessel_textural_model.md`), and it delivers two renderings: a textural schema of the strata and their relations, and a reduction of the harmony to a four voice chorale.
+Analysis tool for musicians that takes a score and shows how its texture is organized and the harmonic structure supporting it. The analysis is based on Pablo Fessel's model of textural strata (ADR 0004, `docs/theory/fessel_textural_model.md`), and its product is a **reduction of the harmony to a four voice chorale**. Fessel's model gives the reduction the structure its decisions rest on (which parts form one line, which are separate planes, where the phrases end); the textural schema of the strata in Fessel's notation is a secondary output, an annex of the analysis.
 
 The purpose is **understanding the structure**, not producing a version to perform. Playability at the piano is used as a readability criterion (two staff system, reasonable hand spans), not as a goal.
 
@@ -19,7 +19,7 @@ The project is named in honor of Isabel Aretz (1909 to 2005), Argentine and Vene
 * **Project language**: English everywhere: code, comments, docstrings, documentation, specs, ADRs and the development journal.
 * **Input**: MusicXML. Optical music recognition (OMR) is out of scope for the first version and will be added later as one more input adapter.
 * **Theoretical foundation**: Pablo Fessel's model of textural strata (ADR 0004). The number of parts or staves does not determine the number of strata; which notes form melody, bass or accompaniment is decided by analysis.
-* **Outputs**: a textural schema and a four voice harmonic reduction on a piano system, both as MusicXML, plus a textual description of the analysis.
+* **Outputs**: the main output is the four voice harmonic reduction on a piano system, as MusicXML, with a textual description of the analysis. The textural schema in Fessel's notation is an annex (spec 002, decision 10).
 * **The reduction is deterministic and auditable.** An LLM only writes the textual description from the structured analysis; it never invents voices or chords.
 * **Two rhythmic modes**: harmonic rhythm (reduced) and the representative rhythm of the piece.
 * **Four granularity levels selectable by the user.** The first version implements only level 2, but the data model supports all four from the start.
@@ -106,7 +106,7 @@ The levels also support classroom use: a teacher can show a coarse level and ask
 
 ## 9. Output modes
 
-* **Textural schema**: the strata of each passage and their relations, as a score with one staff per stratum plus their characterization.
+* **Textural schema** (annex): the strata of each passage and their relations, first as text in Fessel's bracket notation (spec 002), later possibly as a score with one staff per stratum plus their characterization.
 * **Harmonic rhythm**: each chord lasts as long as its function.
 * **Representative rhythm**: the same four voices rearticulated according to the layer chosen in section 6.
 * **Textual description**: written by an LLM from the event tree, with references to bar numbers.

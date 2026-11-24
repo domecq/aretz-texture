@@ -4,10 +4,7 @@ An analysis tool for musicians that reads a MusicXML score, describes how its te
 
 The analysis is based on **Pablo Fessel's model of textural strata** (Fessel, 1996; Fessel, 2000): texture as a hierarchy of relatively autonomous strata, characterized by explicit features and by the factors that make sounds form a line. A key principle of the model guides the tool: the number of instruments or staves does not determine the number of strata. See [`docs/theory/fessel_textural_model.md`](docs/theory/fessel_textural_model.md).
 
-The tool aims to deliver two views of one analysis:
-
-* a **textural schema**: the strata of each passage, their characterization and their relations;
-* a **four voice harmonic reduction** on a piano system, in harmonic rhythm or in the representative rhythm of the piece.
+Its product is a **four voice harmonic reduction** on a piano system, in harmonic rhythm or in the representative rhythm of the piece. Fessel's model gives the reduction its structure: which parts form one line, which are separate strata, where the phrases end. A **textural schema** in Fessel's notation, with the strata of each passage and their relations, is available as an annex of the analysis.
 
 The analysis is deterministic and explains the reading it chose, so a musician can check it and disagree with it. The tool is meant for understanding structure, not for producing a version to perform.
 
