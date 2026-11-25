@@ -24,7 +24,7 @@ The slice is thin on purpose. It computes P, L and D from measures, gives H and 
 * Fusion of doublings (unison and octave) into fused streams with density (`analysis/doublings.py`).
 * Feature decisions (`analysis/features.py`) and the tree of each phrase (`analysis/texture.py`).
 * The textual schema in Fessel's notation, rendered from the tree only (`render/textural_schema.py`), and the command `aretz-texture schema`, as a secondary output (section 1).
-* Evaluation over the 350 chorales with committed lists (`eval/textural_configurations.py`), including Fessel's example 6 as a named acceptance test.
+* Evaluation over the 350 chorales with one committed file of compact forms, one line per phrase (`eval/textural_configurations.py`), and Fessel's example 6 as a named acceptance test.
 
 ### Out
 
@@ -44,7 +44,7 @@ Four pull requests, in this order, each under about 1500 changed lines and merge
 * **002a, core model and schema rendering** (about 850 lines): `core/texture.py`, `render/textural_schema.py`, their tests on hand built trees (example 6 and the other examples of Fessel 1996, pp. 85 to 89), glossary.
 * **002b, phrases and doublings** (about 1100 lines): `analysis/settings.py`, `analysis/metric_grid.py`, `analysis/attacks.py`, `analysis/phrases.py`, `analysis/doublings.py`, with synthetic and corpus tests.
 * **002c, features, tree and command** (about 1050 lines): `analysis/features.py`, `analysis/texture.py`, the `schema` subcommand in `cli.py`, architecture document sections 4 and 5 updated.
-* **002d, evaluation** (about 650 lines including the committed lists): `eval/textural_configurations.py`, the slow corpus test, the committed lists and the example 6 test.
+* **002d, evaluation** (about 150 lines plus the committed file, reduced by Nico on November 25, 2026): `eval/textural_configurations.py`, one committed file with the compact form of every phrase, and the slow test that compares against it. The example 6 test and the corpus counts already landed with 002c.
 
 ## 3. Design
 
@@ -362,30 +362,19 @@ aretz-texture schema SOURCE [--explain]
 
 ### 3.9 Evaluation (`eval/textural_configurations.py`, 002d)
 
+Reduced by Nico on November 25, 2026, to keep the development agile: the evaluation is one committed file that makes any change of analysis visible in review, which is what matters while thresholds are adjusted against the reduction. The corpus counts, the four line phrases, the homogeneity assumption and example 6 are already asserted by the corpus tests of 002c.
+
 ```python
-class ChoraleTexture(BaseModel):
-    identifier: str
-    part_count: int
-    fused_streams: tuple[FusedStream, ...]
-    fermata_clusters: tuple[FermataCluster, ...]
-    analysis: TexturalAnalysis
+def phrase_lines(identifier: str, analysis: TexturalAnalysis) -> tuple[str, ...]: ...
 
 
-def analyze_chorale_texture(
-    identifier: str,
-    settings: TexturalAnalysisSettings,
-) -> ChoraleTexture: ...
-
-
-def is_four_line_phrase(configuration: TexturalConfiguration) -> bool: ...
+def corpus_phrase_lines(settings: TexturalAnalysisSettings) -> tuple[str, ...]: ...
 ```
 
-`is_four_line_phrase` is true when the root is `+P` with exactly four leaf children, each `-P, +H, +L, +C, -D`. The slow corpus test analyzes the 350 identifiers of `list_corpus_chorales()` once and checks the committed files under `tests/eval/`, any change failing the test, as 001c does:
-
-* `expected_texture_summary.txt`: number of phrases, number of phrases whose root is `+D` and `-D`, number of chorales `+D` in every phrase and with at least one `-D` phrase.
-* `expected_homorhythmic_phrases.txt`: every phrase whose root is `-D`, as `identifier: phrase N, bars A to B`.
-* `expected_texture_exceptions.txt`: one line per exception, `identifier: phrase N: reason`, with reasons `four part phrase without four lines` (and the compact form), `homogeneity assumed outside its conditions`, `fermata ends disagree` (the cluster's ends and bars, phrase omitted) and `no fermatas`.
-* `expected_more_than_four_parts.txt`: for each of the 19 chorales with more than four parts, its fused streams as labels and the smallest and largest number of planes over its phrases.
+* `phrase_lines` gives one line per phrase: `identifier: phrase N, bars A to B, closing: C: COMPACT`, with the closing as in the schema heading (`fermata`, `score end`, `no fermatas`) and `COMPACT` the compact form of the phrase's configuration.
+* `corpus_phrase_lines` analyzes the distinct identifiers of `list_corpus_chorales()` in the order listed, keeping the first occurrence of each, and joins their lines.
+* `tests/eval/expected_textural_configurations.txt` holds those lines, 2143 of them. The slow test compares them line by line and, on a difference, reports the first lines that differ, so a change of rule shows which phrases changed. Running `uv run python -m aretz_texture.eval.textural_configurations` writes the current lines to standard output, to regenerate the file when a change is intended; the PR that changes the file explains why.
+* Exception lists, the chorales with more than four parts and per chorale fused streams are left to the spec of the reduction, when it needs them.
 
 ### 3.10 Import contracts and dependencies
 
@@ -435,10 +424,10 @@ No change to `pyproject.toml`. `render/textural_schema.py` imports only `core/`,
 
 ### 002d: evaluation
 
-28. Every phrase of the 350 chorales gets a valid tree (slow).
-29. In every four part chorale, every phrase satisfies `is_four_line_phrase`, except those listed with reason in `expected_texture_exceptions.txt`.
-30. The summary counts, the list of `-D` phrases, the exceptions and the list of chorales with more than four parts equal the committed files.
-31. **Fessel's example 6**: `compact_schema` of phrase 1 of `bach/bwv244.54` (confirmed by Nico against the score of example 6) is exactly `[+P, +H, +C, +D [-P, +H, +L, +C, -D]]`.
+28. Every phrase of the 350 chorales gets a valid tree, and the lines of `corpus_phrase_lines` with default settings equal `tests/eval/expected_textural_configurations.txt` (slow).
+29. `phrase_lines` of BWV 66.6 gives six lines, the first `bach/bwv66.6: phrase 1, bars 0 to 1, closing: fermata: [+P, +H, +C, +D [-P, +H, +L, +C, -D]]`.
+30. The committed file has 2143 lines, 78 of them with a root `-D` (consistent with 002c).
+31. **Fessel's example 6**: `compact_schema` of phrase 1 of `bach/bwv244.54` (confirmed by Nico against the score of example 6) is exactly `[+P, +H, +C, +D [-P, +H, +L, +C, -D]]`. Already asserted in 002c; the line of BWV 244.54 phrase 1 in the committed file carries the same compact form.
 
 ### All pull requests
 
@@ -510,7 +499,7 @@ Facts this spec needs that the corpus facts of November 12 do not establish. The
 
 1. **Which chorale has no fermata at all.** Answered November 24, 2026: BWV 248.23 2. (002b)
 2. **What the 56 disagreements look like.** Answered November 24, 2026: mostly fermatas missing in some parts (58 chorales), harmless with `minimum_fermata_voices` at 1; two clusters with ends half a beat apart (BWV 41.6, BWV 357); and seven places in five chorales where one voice ends its fermata one or two beats before the others. The tolerance of one tactus split those seven into phrases of one or two beats, so the rule became overlap (section 3.4, section 6). (002b)
-3. **Phrases in four part chorales where a voice does not attack**, which would give fewer than four planes and appear in the exceptions list. (002d)
+3. **Phrases in four part chorales where a voice does not attack**, which would give fewer than four planes. Answered in 002c: there are none. (002d)
 4. **Time signature or key signature changes inside a phrase**, which make H an assumption. (002c)
 5. **The intervals of the divided events of BWV 248.9 1**, which decide the L of that leaf. (002c)
 6. **Whether whole score fusion reproduces the probe's groups** for all 19 chorales, and whether any of the 331 four part chorales fuses two voices. (002b)
