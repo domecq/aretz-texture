@@ -7,7 +7,7 @@ from tests.analysis.texture_scores import (
     tied_continuation,
     voices_attacking_at,
 )
-from tests.core_builders import part_of, score_of
+from tests.core_builders import event, part_of, score_of
 
 from aretz_texture.analysis.texture import analyze_texture
 from aretz_texture.core.texture import DecisionRule, TexturalConfiguration
@@ -99,3 +99,24 @@ def test_the_minimum_of_divergent_tactus_spans_is_a_setting() -> None:
     root = analyze_texture(score, settings).phrases[0].configuration
 
     assert divergence_of(root) is False
+
+
+def test_a_root_is_plus_d_when_a_plane_diverges_within_itself() -> None:
+    # Plane 1 fuses C4 held in half notes with C3 restruck on the off eighth; plane 2 attacks
+    # at the union of those points, so the planes do not diverge from each other.
+    union = [2 * step + offset for step in range(10) for offset in (0, 0.5)]
+    score = score_of(
+        part_of([event(2 * step, 2, "C4") for step in range(10)]),
+        part_of(attacking_at("C3", union, 20)),
+        part_of(attacking_at("E5", union, 20)),
+        bar_durations=(4,) * 5,
+    )
+
+    root = first_configuration(score)
+
+    assert len(root.children) == 2
+    assert root.features.attack_divergence.value is True
+    assert "diverges within itself" in root.features.attack_divergence.explanation
+    assert "no tactus span has attacks at different points between its planes" in (
+        root.features.attack_divergence.explanation
+    )

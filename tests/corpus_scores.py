@@ -2,7 +2,10 @@
 
 from functools import cache
 
+from aretz_texture.analysis.settings import TexturalAnalysisSettings
+from aretz_texture.analysis.texture import analyze_texture
 from aretz_texture.core.score import Score
+from aretz_texture.core.texture import TexturalAnalysis
 from aretz_texture.ingest.sources import list_corpus_chorales, read_score
 
 
@@ -15,3 +18,9 @@ def corpus_score(identifier: str) -> Score:
 def distinct_corpus_chorales() -> tuple[str, ...]:
     """Return the 350 distinct chorale identifiers; the listing names 21 files twice."""
     return tuple(dict.fromkeys(list_corpus_chorales()))
+
+
+@cache
+def corpus_texture(identifier: str) -> TexturalAnalysis:
+    """Return the textural analysis of a corpus chorale with the default settings."""
+    return analyze_texture(corpus_score(identifier), TexturalAnalysisSettings())
