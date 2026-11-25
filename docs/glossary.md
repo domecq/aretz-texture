@@ -40,7 +40,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Fermata** (`NoteEvent.fermata`, `RestFermata`): a pause sign over or under a note or rest, which in chorales marks the end of a phrase. On a note it is a property of the note event; on a rest it is stored as a rest fermata.
 
-**Fermata end cluster** (`FermataEndCluster`): the ends of fermata notes and rests of different notated voices that lie closer together than a set number of tactus spans and so mark one phrase end, at the latest of them (spec 002, ADR 0005). Defined by spec 002, not yet implemented.
+**Fermata cluster** (`FermataCluster`): fermata notes and rests of different notated voices whose time spans overlap, heard as one stop and so marking one phrase end, at the latest of their ends (spec 002, ADR 0005). Defined by spec 002, not yet implemented.
 
 **Full score**: the rendering of a score with one staff per part, in score order, with part and instrument names (`render/full_score.py`). Used by the evaluation to round trip scores with any number of parts.
 
@@ -74,7 +74,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Part** (`Part`): one part of the source score as stored in the file, identified by its position in score order (part 1 is the top one), with its name and instrument name as metadata and one or more notated voices. Ingestion keeps every part; the number and names of the parts never decide the strata (ADR 0004).
 
-**Phrase** (`Phrase`): the local domain over which spec 002 computes one textural configuration. In the chorales a phrase ends at a fermata end cluster; the music after the last fermata is a last phrase, and a score without fermatas is one phrase (ADR 0005, a project decision, not Fessel's). Numbered from 1. Defined by spec 002; the model is in `core/texture.py`, and the segmentation arrives with slice 002b.
+**Phrase** (`Phrase`): the local domain over which spec 002 computes one textural configuration. In the chorales a phrase ends at a fermata cluster; music with attacks after the last fermata is a last phrase, rests alone join the previous one, and a score without fermatas is one phrase (ADR 0005, a project decision, not Fessel's). Numbered from 1. Defined by spec 002; the model is in `core/texture.py`, and the segmentation arrives with slice 002b.
 
 **Pickup bar**: an incomplete first bar, shorter than its time signature, that leads into the first full bar (also called anacrusis). Its length is given by `Score.pickup_duration()`.
 

@@ -13,7 +13,7 @@ The corpus facts these choices rest on were verified by the main session on Nove
 
 For the chorales, and until a later ADR replaces any of them:
 
-1. **Local domain: the phrase, ended by fermatas** (project). Fermata ends of every notated voice of every part are clustered when closer than one tactus; the latest end of each cluster ends a phrase; music after the last fermata is a last phrase; a score without fermatas is one phrase. No part is privileged, because part order varies in the corpus and in 56 chorales the fermata ends of the first four parts disagree.
+1. **Local domain: the phrase, ended by fermatas** (project). Fermatas of every notated voice of every part whose notes overlap in time form one cluster, one stop however each voice writes it; the latest end of each cluster ends a phrase; music with attacks after the last fermata is a last phrase, while rests alone join the previous phrase; a score without fermatas is one phrase. Changed by Nico on November 24, 2026 from a tolerance of one tactus between fermata ends, which split seven cadences of the corpus into phrases of one or two beats where one voice, usually the bass, ends its fermata early and moves on under the others. No part is privileged, because part order varies in the corpus and in 56 chorales the fermata ends of the first four parts disagree.
 2. **Tactus: the beat of the time signature** (project), dotted in compound meters, with tactus spans on the bar grid and a pickup bar aligned to its end.
 3. **Streams are notated voices** (project). One notated voice is never split (no stream segregation).
 4. **Doublings** (criteria from Fessel 2000, pp. 85 to 88; thresholds project). Two notated voices fuse into one line with density when at least 9/10 of the attacks of the sparser one coincide in onset with an attack of the other sharing a pitch class (unison or octave). Fusion is computed over the whole score and is transitive. Doublings at other intervals and intermediate +P nodes are not formed.
@@ -47,6 +47,7 @@ All thresholds live in typed settings (`analysis/settings.py`) with name, unit a
 * **Phrases from one part** (the soprano, or part 1): fails in the three chorales whose part 1 is an instrument without fermatas, and depends on part names or order (ADR 0004).
 * **Majority of parts for a phrase end**: fails where instruments carry no fermatas, as in BWV 190.7.
 * **Fixed windows of bars**: arbitrary in the chorales, where the fermatas mark the phrases.
+* **Fermata ends clustered within one tactus** (the first version of reading 1): splits BWV 320, 153.5, 29.8, 375 and 392 into phrases of one or two beats; a wider tolerance would only move the problem.
 * **Fusion per phrase**: joins voices that share one or two notes in a short phrase.
 * **Strict attack coincidence (1) for fusion**: closest to Fessel's wording, kept available as a setting; 9/10 is the threshold the corpus facts were verified with.
 * **D as the share of divergent tactus spans with a threshold above one span**: possible later; Fessel's feature is binary and the reading of one span is the simplest that agrees with example 6.
