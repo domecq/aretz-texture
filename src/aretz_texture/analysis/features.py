@@ -209,6 +209,16 @@ def decide_linearity(
     not_parallel = _parallel_motion_failure(points, meeting, settings)
     if not_parallel is not None:
         return _simultaneity_decision(value=False, explanation=not_parallel)
+    if failures:
+        point, reason = failures[0]
+        return _simultaneity_decision(
+            value=True,
+            explanation=(
+                f"{len(meeting)} of {len(points)} attack points meet the conditions, at least "
+                f"{settings.minimum_linear_attack_proportion} as the settings require; the first "
+                f"that does not is at {_label_at(score, point.onset)}: {reason}."
+            ),
+        )
     return _simultaneity_decision(
         value=True,
         explanation=(

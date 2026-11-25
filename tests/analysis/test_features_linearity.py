@@ -139,6 +139,24 @@ def test_the_linear_attack_proportion_is_a_setting() -> None:
     assert leaf.features.linearity.value is True
 
 
+def test_a_tolerated_failure_is_reported_with_the_share_and_the_threshold() -> None:
+    features = DEFAULT_SETTINGS.features.model_copy(
+        update={"minimum_linear_attack_proportion": Fraction(1, 2)}
+    )
+    settings = DEFAULT_SETTINGS.model_copy(update={"features": features})
+    held = [event(2 * step, 2, "C4") for step in range(10)]
+    restruck = attacking_at(
+        "C3", [2 * step + offset for step in range(10) for offset in (0, 0.5)], 20
+    )
+    score = score_of(part_of(held), part_of(restruck), bar_durations=(4,) * 5)
+
+    explanation = (
+        analyze_texture(score, settings).phrases[0].configuration.features.linearity.explanation
+    )
+
+    assert explanation.startswith("10 of 20 attack points meet the conditions, at least 1/2")
+
+
 def test_every_decision_of_a_leaf_has_an_explanation() -> None:
     analysis = analyze(score_of(part_of(one_quarter_per_pitch(LINE[:4])), bar_durations=(4,)))
 
