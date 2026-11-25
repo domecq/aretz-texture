@@ -10,7 +10,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Association factors**: the factors that favor hearing a succession of sounds as one line: intervallic proximity, proximity of attacks, formal variability, directional convergence and timbral similarity (Fessel, 2000). Concept, not yet implemented.
 
-**Attack** (`Attack`): the start of a sound in a notated voice: a note event, keeping only the pitches that do not continue a tie. An event whose pitches all continue a tie is not an attack, and grace notes and rest fermatas are not attacks. Defined by spec 002, not yet implemented.
+**Attack** (`Attack`): the start of a sound in a notated voice: a note event, keeping only the pitches that do not continue a tie. An event whose pitches all continue a tie is not an attack, and grace notes and rest fermatas are not attacks. Defined by spec 002; implemented in `analysis/attacks.py` (`voice_attacks`).
 
 **Attack divergence** ([± attack divergence], D, `TexturalFeatures.attack_divergence`): the textural feature that asks whether the time points of attack within or between the planes of a configuration differ inside the span of the tactus (Fessel, 1996). In spec 002 a configuration is `+D` when, in at least one tactus span, two or more components attack and their sets of attack points inside the span are not all equal; components that share every attack point do not diverge, and one component attacking alone is not divergence (ADR 0005). A `+L` configuration is always `-D` (cooccurrence restriction 5). Defined by spec 002; the model is in `core/texture.py`, and the rule that computes it arrives with slice 002c.
 
@@ -30,7 +30,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Divided event**: a note event with more than one pitch, written as a chord inside one notated voice, such as a bass dividing into octaves on a final chord. All its pitches share onset, duration and fermata; each keeps its own tie.
 
-**Doubling**: two or more notated voices heard as one line with density because their attacks coincide strictly and they move in parallel (Fessel, 2000). In spec 002, two notated voices are doublings when at least a set share of the attacks of the sparser one coincide in onset with an attack of the other sharing a pitch class (unison or octave), over the whole score (ADR 0005). Defined by spec 002, not yet implemented.
+**Doubling**: two or more notated voices heard as one line with density because their attacks coincide strictly and they move in parallel (Fessel, 2000). In spec 002, two notated voices are doublings when at least a set share of the attacks of the sparser one coincide in onset with an attack of the other sharing a pitch class (unison or octave), over the whole score (ADR 0005). Defined by spec 002; the proportion and the fusion are in `analysis/doublings.py`.
 
 **Duration** (`NoteEvent.duration`, `Bar.duration`): how long an event or bar lasts, in quarter lengths, as an exact fraction.
 
@@ -40,11 +40,11 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Fermata** (`NoteEvent.fermata`, `RestFermata`): a pause sign over or under a note or rest, which in chorales marks the end of a phrase. On a note it is a property of the note event; on a rest it is stored as a rest fermata.
 
-**Fermata cluster** (`FermataCluster`): fermata notes and rests of different notated voices whose time spans overlap, heard as one stop and so marking one phrase end, at the latest of their ends (spec 002, ADR 0005). Defined by spec 002, not yet implemented.
+**Fermata cluster** (`FermataCluster`): fermata notes and rests of different notated voices whose time spans overlap, heard as one stop and so marking one phrase end, at the latest of their ends (spec 002, ADR 0005). Defined by spec 002; found by `fermata_clusters` in `analysis/phrases.py`, which keeps the clusters with at least `minimum_fermata_voices` notated voices.
 
 **Full score**: the rendering of a score with one staff per part, in score order, with part and instrument names (`render/full_score.py`). Used by the evaluation to round trip scores with any number of parts.
 
-**Fused stream** (`FusedStream`): the notated voices joined by doubling into one stream; most fused streams hold a single notated voice. In spec 002 each fused stream present in a phrase is one plane. Defined by spec 002, not yet implemented.
+**Fused stream** (`FusedStream`): the notated voices joined by doubling into one stream; most fused streams hold a single notated voice. In spec 002 each fused stream present in a phrase is one plane. Defined by spec 002; computed by `fuse_doublings` in `analysis/doublings.py` over the whole score, where fusion is transitive: a notated voice that doubles two others joins them in one stream even if they do not double each other.
 
 **Grace note** (`GraceNote`, `NotatedVoice.grace_notes`): an ornamental note or chord written small, which takes no time in the bar, so it is not a note event. Stored in its notated voice next to the note events, with the onset of the note or rest it ornaments, its pitches with their ties, its notated value (the quarter lengths of its symbol, 1/2 for an eighth) and whether it has a slash. Grace notes at one onset keep their source order and are written before the note or rest at that onset.
 
@@ -74,7 +74,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Part** (`Part`): one part of the source score as stored in the file, identified by its position in score order (part 1 is the top one), with its name and instrument name as metadata and one or more notated voices. Ingestion keeps every part; the number and names of the parts never decide the strata (ADR 0004).
 
-**Phrase** (`Phrase`): the local domain over which spec 002 computes one textural configuration. In the chorales a phrase ends at a fermata cluster; music with attacks after the last fermata is a last phrase, rests alone join the previous one, and a score without fermatas is one phrase (ADR 0005, a project decision, not Fessel's). Numbered from 1. Defined by spec 002; the model is in `core/texture.py`, and the segmentation arrives with slice 002b.
+**Phrase** (`Phrase`): the local domain over which spec 002 computes one textural configuration. In the chorales a phrase ends at a fermata cluster; music with attacks after the last fermata is a last phrase, rests alone join the previous one, and a score without fermatas is one phrase (ADR 0005, a project decision, not Fessel's). Numbered from 1. Defined by spec 002; the model is in `core/texture.py`, and the segmentation is `segment_phrases` in `analysis/phrases.py`.
 
 **Pickup bar**: an incomplete first bar, shorter than its time signature, that leads into the first full bar (also called anacrusis). Its length is given by `Score.pickup_duration()`.
 
@@ -94,7 +94,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Score** (`Score`): a complete piece held in the core model: its bars, its time signatures and its parts in score order.
 
-**Settings** (`TexturalAnalysisSettings`): the typed thresholds of the analysis, each with a name, a unit and its musical meaning. Called settings, never configuration, so that "configuration" always means a textural configuration. Defined by spec 002, not yet implemented.
+**Settings** (`TexturalAnalysisSettings`): the typed thresholds of the analysis, each with a name, a unit and its musical meaning. Called settings, never configuration, so that "configuration" always means a textural configuration. Defined by spec 002; in `analysis/settings.py`.
 
 **Soprano**: the highest voice of the four voice harmonic reduction, which takes the structural note of the melody chosen by analysis. It is never a part of the source, even one named Soprano. Concept, not yet implemented.
 
@@ -104,15 +104,15 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Step** (`SpelledPitch.step`): the letter name of a pitch, from C to B, without accidental or octave.
 
-**Stream** (`StreamReference`): the unit of sound the textural analysis groups into planes. In spec 002 a stream is one notated voice of one part, identified by part number and voice number, with the part name for labels; a notated voice is never split into several streams. Defined by spec 002; the reference is in `core/texture.py`, and the analysis that builds it arrives with slice 002b.
+**Stream** (`StreamReference`): the unit of sound the textural analysis groups into planes. In spec 002 a stream is one notated voice of one part, identified by part number and voice number, with the part name for labels; a notated voice is never split into several streams. Defined by spec 002; the reference is in `core/texture.py`, and `analysis/attacks.py` lists the streams of a score (`stream_references`).
 
 **Stratum**: a relatively autonomous domain of the texture, such as a melody, a bass, a pedal or a harmonic accompaniment, characterized by its function and its relations with the other strata. Strata form a hierarchy, and their number does not follow from the number of parts or staves (ADR 0004). Concept, not yet implemented.
 
 **Substratum**: an internal subdivision of a stratum, itself a stratum one level lower in the hierarchy. Concept, not yet implemented.
 
-**Tactus** (`tactus_duration`): the time span within which attack divergence is judged (Fessel, 1996). In spec 002 it is the beat of the time signature: a quarter in 4/4 and 3/4, a half in 3/2, a dotted quarter in 6/8 and 12/8 (ADR 0005). Defined by spec 002, not yet implemented.
+**Tactus** (`tactus_duration`): the time span within which attack divergence is judged (Fessel, 1996). In spec 002 it is the beat of the time signature: a quarter in 4/4 and 3/4, a half in 3/2, a dotted quarter in 6/8 and 12/8 (ADR 0005). Defined by spec 002; implemented in `analysis/metric_grid.py`.
 
-**Tactus span** (`tactus_spans`): one tactus on the bar grid, from a beat to the next. Spans tile each bar from its onset, except a pickup bar, which is tiled from its end so its spans fall on the last beats of a complete bar. Defined by spec 002, not yet implemented.
+**Tactus span** (`tactus_spans`): one tactus on the bar grid, from a beat to the next. Spans tile each bar from its onset, except a pickup bar, which is tiled from its end so its spans fall on the last beats of a complete bar. Labels count tactus spans from 1 in the virtual complete bar, so the pickup of BWV 66.6 is "bar 0, tactus 4" and the second piece of a bar split in two continues the numbering of the first (`tactus_label`). Defined by spec 002; implemented in `analysis/metric_grid.py`.
 
 **Tenor**: the third voice from the top of the four voice harmonic reduction, chosen by analysis and voicing. It is never a part of the source, even one named Tenor. Concept, not yet implemented.
 
