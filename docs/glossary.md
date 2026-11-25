@@ -2,7 +2,7 @@
 
 This glossary defines each musical term as the code of Aretz Texture uses it. Identifiers in the code must use these names; if a term is missing, add it here in the same pull request that introduces it (AGENTS.md, "Names"). Where a term has a code identifier, it is shown in backticks. Terms of Pablo Fessel's textural model (ADR 0004, `docs/theory/fessel_textural_model.md`) that have no code yet are marked "concept, not yet implemented".
 
-**Accent coincidence** ([± accent coincidence], C, `TexturalFeatures.accent_coincidence`): the textural feature that asks whether the phenomenal accents of the planes of a configuration coincide, assuming compatible meters (Fessel, 1996). A `-P` configuration is always `+C` (cooccurrence restriction 3). In spec 002 a `+P` configuration is `+C` by a provisional rule, because every plane shares the score's meter; phenomenal accents are not modeled. Defined by spec 002; the model is in `core/texture.py`, and the rule that computes it arrives with slice 002c.
+**Accent coincidence** ([± accent coincidence], C, `TexturalFeatures.accent_coincidence`): the textural feature that asks whether the phenomenal accents of the planes of a configuration coincide, assuming compatible meters (Fessel, 1996). A `-P` configuration is always `+C` (cooccurrence restriction 3). In spec 002 a `+P` configuration is `+C` by a provisional rule, because every plane shares the score's meter; phenomenal accents are not modeled. Defined by spec 002; the model is in `core/texture.py`, and the rule is in `analysis/features.py` (`decide_root_accent_coincidence`).
 
 **Alter** (`SpelledPitch.alter`): the number of semitones an accidental moves a note away from its natural step: -2 double flat, -1 flat, 0 natural, 1 sharp, 2 double sharp.
 
@@ -12,13 +12,15 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Attack** (`Attack`): the start of a sound in a notated voice: a note event, keeping only the pitches that do not continue a tie. An event whose pitches all continue a tie is not an attack, and grace notes and rest fermatas are not attacks. Defined by spec 002; implemented in `analysis/attacks.py` (`voice_attacks`).
 
-**Attack divergence** ([± attack divergence], D, `TexturalFeatures.attack_divergence`): the textural feature that asks whether the time points of attack within or between the planes of a configuration differ inside the span of the tactus (Fessel, 1996). In spec 002 a configuration is `+D` when, in at least one tactus span, two or more components attack and their sets of attack points inside the span are not all equal; components that share every attack point do not diverge, and one component attacking alone is not divergence (ADR 0005). A `+L` configuration is always `-D` (cooccurrence restriction 5). Defined by spec 002; the model is in `core/texture.py`, and the rule that computes it arrives with slice 002c.
+**Attack divergence** ([± attack divergence], D, `TexturalFeatures.attack_divergence`): the textural feature that asks whether the time points of attack within or between the planes of a configuration differ inside the span of the tactus (Fessel, 1996). In spec 002 a configuration is `+D` when, in at least one tactus span, two or more components attack and their sets of attack points inside the span are not all equal; components that share every attack point do not diverge, and one component attacking alone is not divergence (ADR 0005). A `+L` configuration is always `-D` (cooccurrence restriction 5). Defined by spec 002; the model is in `core/texture.py`, and the rule is in `analysis/features.py` (`measure_divergence` and `decide_leaf_attack_divergence` and `decide_root_attack_divergence`).
 
 **Bar** (`Bar`): a measure of the score, with the number shown in the score, its onset and its actual duration. The code says bar, never measure, except when naming music21 objects.
 
 **Bass**: the lowest voice of the four voice harmonic reduction, the actual bass chosen by analysis. It is never a part of the source, even one named Bass. Concept, not yet implemented.
 
 **Compact form** (`compact_schema`): a textural configuration written on one line in Fessel's bracket notation, features in the order P, H, L, C, D and children after their parent's features, with identical sibling configurations printed once, as in `[+P, +H, +C, +D [-P, +H, +L, +C, -D]]` (Fessel, 1996, p. 86). Defined by spec 002; implemented in `core/texture.py` and `render/textural_schema.py`.
+
+**Component** (`Component`): what can attack in a configuration when attack divergence is judged: its planes at a `+P` root, its notated voices at a leaf. A plane's attack points are the union of the attack points of its notated voices in the phrase. Defined by spec 002; implemented in `analysis/features.py`.
 
 **Cooccurrence restriction**: one of the five constraints of Fessel (1996, pp. 84 and 85) on which feature values may appear together in a configuration: (1) `-H` implies `+P`; (2) `-P` implies `+H`; (3) `-C` implies `+P`; (4) L is specified exactly when `-P`; (5) `+L` implies `-D`. Validators of `TexturalFeatures`. Defined by spec 002; implemented in `core/texture.py`.
 
@@ -30,13 +32,15 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Divided event**: a note event with more than one pitch, written as a chord inside one notated voice, such as a bass dividing into octaves on a final chord. All its pitches share onset, duration and fermata; each keeps its own tie.
 
+**Divergent span** (`DivergentSpan`): a tactus span in which at least two components attack and their sets of attack points inside the span are not all equal, with the two components that show it. One divergent span is enough to make a configuration `+D` (`minimum_divergent_tactus_spans`). Defined by spec 002; found by `measure_divergence` in `analysis/features.py`.
+
 **Doubling**: two or more notated voices heard as one line with density because their attacks coincide strictly and they move in parallel (Fessel, 2000). In spec 002, two notated voices are doublings when at least a set share of the attacks of the sparser one coincide in onset with an attack of the other sharing a pitch class (unison or octave), over the whole score (ADR 0005). Defined by spec 002; the proportion and the fusion are in `analysis/doublings.py`.
 
 **Duration** (`NoteEvent.duration`, `Bar.duration`): how long an event or bar lasts, in quarter lengths, as an exact fraction.
 
 **Event pitch** (`EventPitch`): one pitch of a note event or grace note together with its tie.
 
-**Feature decision** (`FeatureDecision`): the value of one textural feature at one node, with the rule that decided it (`DecisionRule`) and an explanation naming bars and tactus spans, so a musician can see the factor behind the reading (Fessel, 2000, p. 88). Defined by spec 002; the model is in `core/texture.py`, and the decisions are produced by slice 002c.
+**Feature decision** (`FeatureDecision`): the value of one textural feature at one node, with the rule that decided it (`DecisionRule`) and an explanation naming bars and tactus spans, so a musician can see the factor behind the reading (Fessel, 2000, p. 88). Defined by spec 002; the model is in `core/texture.py`, and the decisions are produced by `analysis/features.py`.
 
 **Fermata** (`NoteEvent.fermata`, `RestFermata`): a pause sign over or under a note or rest, which in chorales marks the end of a phrase. On a note it is a property of the note event; on a rest it is stored as a rest fermata.
 
@@ -54,7 +58,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Harmonic window** (`HarmonicWindow`): a span of time over which a single harmony is considered to hold, the result of merging verticalities in harmonic segmentation (architecture, section 3).
 
-**Homogeneity** ([± homogeneity], H, `TexturalFeatures.homogeneity`): the textural feature that asks whether the planes of a configuration are homogeneous with each other: same harmonic field, simple proportions between their pulses, same spatial origin, similar timbre (Fessel, 1996). A `-P` configuration is always `+H` (cooccurrence restriction 2). In spec 002 a `+P` configuration is `+H` by a provisional rule that holds for a phrase with one time signature and no key signature change; outside those conditions `+H` is recorded as an assumption. Defined by spec 002; the model is in `core/texture.py`, and the rule that computes it arrives with slice 002c.
+**Homogeneity** ([± homogeneity], H, `TexturalFeatures.homogeneity`): the textural feature that asks whether the planes of a configuration are homogeneous with each other: same harmonic field, simple proportions between their pulses, same spatial origin, similar timbre (Fessel, 1996). A `-P` configuration is always `+H` (cooccurrence restriction 2). In spec 002 a `+P` configuration is `+H` by a provisional rule that holds for a phrase with one time signature and no key signature change; outside those conditions `+H` is recorded as an assumption. Defined by spec 002; the model is in `core/texture.py`, and the rule is in `analysis/features.py` (`decide_root_homogeneity`).
 
 **Indented form**: a textural configuration written one node per line, children indented under their parent and every plane on its own line with the labels of its streams; the readable form of the textural schema (spec 002). Defined by spec 002; implemented in `core/texture.py` and `render/textural_schema.py`.
 
@@ -64,7 +68,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Line**: a succession of sounds heard as one recognizable voice, identified from association and dissociation factors in the textural context. A line is a result of analysis: it is not given by a part or a notated voice. Concept, not yet implemented.
 
-**Linearity** ([± linearity], L, `TexturalFeatures.linearity`): the textural feature that asks whether a plane is configured as a voice (Fessel, 1996). Specified only on `-P` configurations (cooccurrence restriction 4). In spec 002 a plane is `+L` when, at each of its attacks, every notated voice of the plane that sounds also attacks and the attacked pitches are at the unison, octave, fourth, fifth, third or sixth, and where they are at intervals other than unison and octave they move in parallel at nearly every step (Fessel 1996, p. 81; Fessel 2000, p. 86; ADR 0005, reading 7). Separate notated voices are fused into one plane only at the unison or octave, so two parts in parallel thirds stay two planes. These are Fessel's necessary conditions, and the sufficient ones are left to later work. Defined by spec 002; the model is in `core/texture.py`, and the rule that computes it arrives with slice 002c.
+**Linearity** ([± linearity], L, `TexturalFeatures.linearity`): the textural feature that asks whether a plane is configured as a voice (Fessel, 1996). Specified only on `-P` configurations (cooccurrence restriction 4). In spec 002 a plane is `+L` when, at each of its attacks, every notated voice of the plane that sounds also attacks and the attacked pitches are at the unison, octave, fourth, fifth, third or sixth, and where they are at intervals other than unison and octave they move in parallel at nearly every step (Fessel 1996, p. 81; Fessel 2000, p. 86; ADR 0005, reading 7). Separate notated voices are fused into one plane only at the unison or octave, so two parts in parallel thirds stay two planes. These are Fessel's necessary conditions, and the sufficient ones are left to later work. Defined by spec 002; the model is in `core/texture.py`, and the rule is in `analysis/features.py` (`decide_linearity`).
 
 **Notated voice** (`NotatedVoice`, `Part.voices`): one of the voices written on the staff of a part, as in MusicXML, holding its note events in order of onset with its own rhythm. Most parts have one; a part with two voices on its staff has two. A fact of the notation, not a line.
 
@@ -82,9 +86,9 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Pitch spelling** (`SpelledPitch`): a pitch written as step, alter and octave, so that enharmonic equivalents such as F sharp and G flat remain different.
 
-**Plane**: in Fessel (1996), an autonomous plane of musical organization distinguished in the simultaneity. In the code, the planes of a `+P` configuration are its children; a plane that is not divided further is a `-P` configuration. Spec 002 treats Fessel's plane (1996) and stratum (2000) as the same domain and keeps "stratum" for a plane with a characterization (open question 8 of spec 002). Defined by spec 002; implemented in `core/texture.py` and `render/textural_schema.py`.
+**Plane**: in Fessel (1996), an autonomous plane of musical organization distinguished in the simultaneity. In the code, the planes of a `+P` configuration are its children; a plane that is not divided further is a `-P` configuration. Spec 002 treats Fessel's plane (1996) and stratum (2000) as the same domain and keeps "stratum" for a plane with a characterization (open question 8 of spec 002). Defined by spec 002; implemented in `core/texture.py` and `render/textural_schema.py`. The planes of a phrase are ordered by register, highest first, by the mean sounding pitch of the pitches they attack in the phrase, ties broken by the first notated voice; the order is presentation only, since Fessel's configurations are unordered (1996, p. 79).
 
-**Planes** ([± planes], P, `TexturalFeatures.planes`): the textural feature that asks whether autonomous planes are distinguished in the simultaneity. `+P` says nothing about how many there are. In the code a configuration is `+P` exactly when it has two or more children. Defined by spec 002; the model is in `core/texture.py`, and the rule that computes it arrives with slice 002c.
+**Planes** ([± planes], P, `TexturalFeatures.planes`): the textural feature that asks whether autonomous planes are distinguished in the simultaneity. `+P` says nothing about how many there are. In the code a configuration is `+P` exactly when it has two or more children. Defined by spec 002; the model is in `core/texture.py`, and the rule is in `analysis/features.py` (`decide_planes`).
 
 **Quarter length**: the unit of every time value in the code: one quarter note equals 1. An eighth note is 1/2 and a triplet eighth is 1/3.
 
@@ -95,6 +99,8 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 **Score** (`Score`): a complete piece held in the core model: its bars, its time signatures and its parts in score order.
 
 **Settings** (`TexturalAnalysisSettings`): the typed thresholds of the analysis, each with a name, a unit and its musical meaning. Called settings, never configuration, so that "configuration" always means a textural configuration. Defined by spec 002; in `analysis/settings.py`.
+
+**Silent phrase** (`SilentPhraseError`): a phrase in which no notated voice attacks, so it has no plane and no textural configuration; the analysis refuses it with a domain error. It does not occur in the corpus chorales. Defined by spec 002; raised by `analyze_texture`.
 
 **Soprano**: the highest voice of the four voice harmonic reduction, which takes the structural note of the melody chosen by analysis. It is never a part of the source, even one named Soprano. Concept, not yet implemented.
 
@@ -120,7 +126,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Textural feature** (`TexturalFeature`): one of the five binary features of Fessel (1996) that combine to characterize a textural configuration: planes (P), homogeneity (H), linearity (L), accent coincidence (C) and attack divergence (D). Each takes a positive or negative value; L is left unspecified on `+P` configurations. Defined by spec 002; implemented in `core/texture.py` and `render/textural_schema.py`.
 
-**Textural schema** (`format_textural_schema`): the rendering of the analysis as a hierarchy of strata with their characterization and relations, and how they change over time; one of the two renderings of the analysis, with the harmonic reduction. Spec 002 renders it as text, per phrase, in the indented form and the compact form, through `aretz-texture schema`. Defined by spec 002; the rendering is in `render/textural_schema.py`, and the command arrives with slice 002c.
+**Textural schema** (`format_textural_schema`): the rendering of the analysis as a hierarchy of strata with their characterization and relations, and how they change over time; one of the two renderings of the analysis, with the harmonic reduction. Spec 002 renders it as text, per phrase, in the indented form and the compact form, through `aretz-texture schema`. Defined by spec 002; the rendering is in `render/textural_schema.py`, and the command is `aretz-texture schema SOURCE [--explain]` in `cli.py`.
 
 **Tie** (`TieType`): a curved line joining two notes of the same pitch so they sound as one. Each event pitch records its place in the tie: `START`, `CONTINUE` or `STOP`, or none.
 

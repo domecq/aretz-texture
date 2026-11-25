@@ -1,6 +1,6 @@
 # Aretz Texture: architecture
 
-Version 0.6, November 2026. Living document: every new decision is recorded as an ADR in `docs/adr/` and summarized here.
+Version 0.7, November 2026. Living document: every new decision is recorded as an ADR in `docs/adr/` and summarized here.
 
 ## 1. Goal
 
@@ -47,6 +47,8 @@ The **textural configuration tree** follows Fessel's recursive model. Each node 
 * the values of the five features (planes, homogeneity, linearity, accent coincidence, attack divergence) and the relations with its sibling strata
 * traceability: which notes of which parts belong to it, and the measured factors that justify the grouping
 
+Since spec 002 the tree exists for the chorales (`core/texture.py`, built by `analysis/texture.py`): one tree per phrase, whose root is `+P` over its planes, or a single `-P` leaf when the phrase has one plane. Each node holds the five features as `FeatureDecision` values, every one with the rule that decided it and an explanation naming bars and tactus spans, and each leaf lists the notated voices it groups. Characterization is not computed yet. The tree is what the reduction will consume; the schema in Fessel's notation (`render/textural_schema.py`, command `aretz-texture schema`) is rendered from it and never recomputes the analysis.
+
 The **hierarchical tree of harmonic events** describes the harmony that the strata project. Each node contains:
 
 * time span (onset and duration on the metric grid)
@@ -66,6 +68,8 @@ Based on Fessel's model (`docs/theory/fessel_textural_model.md`). Sounds are gro
 * **Dissociation factors**: rhythmic independence, registral separation, directional divergence, timbral dissimilarity, differences of intensity.
 
 Most factors are measured directly from the score; timbre comes from the instrument of each part and intensity from dynamics. A part may contribute to several strata, and several parts may form one stratum. Features that depend on perception, such as homogeneity and linearity, are deterministic heuristics with named, configurable weights, calibrated against human musical review. The output explains the reading it chose, so a musician can disagree with it and override it.
+
+**Current implementation (spec 002, ADR 0005).** For the chorales, strata identification is reduced to what the corpus supports. A phrase ends at a cluster of overlapping fermatas of any notated voice. Notated voices whose attacks coincide at the unison or octave over the whole score are fused into one plane. The five features are decided in `analysis/features.py`: P by counting planes; L at the leaves from Fessel's necessary conditions (every sounding voice of the plane attacks, the pitches are at intervals a single voice can take, and simultaneous pitches move in parallel); D by tactus spans, as the spans in which at least two components attack at points that are not all equal, at the root over its planes and also when one of its planes diverges within itself; H and C by provisional rules that hold for one meter and key per phrase, with an assumption recorded outside them. The planes under the root are ordered by register for presentation. Intermediate grouping, characterization of strata and segregation inside a notated voice are not implemented.
 
 ## 6. Representative rhythm
 
