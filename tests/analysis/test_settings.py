@@ -54,3 +54,46 @@ def test_settings_can_be_overridden_by_name() -> None:
     settings = DoublingSettings(minimum_coinciding_attack_proportion=Fraction(1))
 
     assert settings.minimum_coinciding_attack_proportion == 1
+
+
+@pytest.mark.parametrize(
+    "proportion", [Fraction(0), Fraction(-1, 10), Fraction(11, 10), Fraction(9)]
+)
+def test_doubling_proportion_outside_zero_to_one_is_rejected(proportion: Fraction) -> None:
+    with pytest.raises(ValidationError):
+        DoublingSettings(minimum_coinciding_attack_proportion=proportion)
+
+
+@pytest.mark.parametrize(
+    "field", ["minimum_parallel_motion_proportion", "minimum_linear_attack_proportion"]
+)
+@pytest.mark.parametrize("proportion", [Fraction(0), Fraction(-1, 10), Fraction(11, 10)])
+def test_feature_proportion_outside_zero_to_one_is_rejected(
+    field: str, proportion: Fraction
+) -> None:
+    with pytest.raises(ValidationError):
+        FeatureSettings.model_validate({field: proportion})
+
+
+@pytest.mark.parametrize("count", [0, -1])
+def test_minimum_fermata_voices_below_one_is_rejected(count: int) -> None:
+    with pytest.raises(ValidationError):
+        PhraseSegmentationSettings(minimum_fermata_voices=count)
+
+
+@pytest.mark.parametrize("count", [0, -1])
+def test_minimum_divergent_tactus_spans_below_one_is_rejected(count: int) -> None:
+    with pytest.raises(ValidationError):
+        FeatureSettings(minimum_divergent_tactus_spans=count)
+
+
+@pytest.mark.parametrize("interval_class", [-1, 12])
+def test_interval_class_outside_the_octave_is_rejected(interval_class: int) -> None:
+    with pytest.raises(ValidationError):
+        FeatureSettings(linear_interval_classes=frozenset({0, interval_class}))
+
+
+def test_proportion_of_exactly_one_is_accepted() -> None:
+    settings = FeatureSettings(minimum_parallel_motion_proportion=Fraction(1))
+
+    assert settings.minimum_parallel_motion_proportion == 1
