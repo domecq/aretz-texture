@@ -1,4 +1,4 @@
-"""Criteria 22 to 24: the `aretz-texture piano` command."""
+"""Criteria 22 to 24 of spec 001 and 27 of spec 002: the `piano` and `schema` commands."""
 
 import tomllib
 from pathlib import Path
@@ -124,6 +124,68 @@ def test_reduce_is_not_a_subcommand_yet(capsys: pytest.CaptureFixture[str]) -> N
 
     assert raised.value.code == 2
     assert "reduce" in capsys.readouterr().err
+
+
+def test_schema_command_writes_one_block_per_phrase_of_a_corpus_chorale(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["schema", "bwv66.6"])
+
+    printed = capsys.readouterr()
+    assert exit_code == 0
+    assert printed.err == ""
+    assert printed.out.endswith("\n")
+    headings = [line for line in printed.out.splitlines() if line.startswith("Phrase ")]
+    assert len(headings) == 6
+    assert headings[0] == "Phrase 1, bars 0 to 1, closing: fermata"
+    assert printed.out.count("Compact: ") == 6
+
+
+def test_schema_command_with_explain_adds_the_decisions(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    main(["schema", "bwv66.6"])
+    plain = capsys.readouterr().out
+
+    exit_code = main(["schema", "bwv66.6", "--explain"])
+
+    explained = capsys.readouterr().out
+    assert exit_code == 0
+    assert len(explained) > len(plain)
+    assert "P +: plane_count: 4 planes below this configuration." in explained
+    assert "bar 0, tactus 4" in explained
+
+
+def test_schema_command_accepts_a_musicxml_file_path_as_source(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    source = four_part_file_without_lyrics(tmp_path)
+
+    exit_code = main(["schema", str(source)])
+
+    assert exit_code == 0
+    assert "closing: no fermatas" in capsys.readouterr().out
+
+
+def test_schema_command_reports_an_unknown_source_on_standard_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main(["schema", "bwv0.0"])
+
+    printed = capsys.readouterr()
+    assert exit_code == 1
+    assert "bwv0.0" in printed.err
+    assert printed.out == ""
+
+
+def test_schema_command_without_a_source_is_a_usage_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as raised:
+        main(["schema"])
+
+    assert raised.value.code == 2
+    assert "source" in capsys.readouterr().err
 
 
 def test_the_script_entry_point_is_declared() -> None:
