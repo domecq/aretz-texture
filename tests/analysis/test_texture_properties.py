@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from fractions import Fraction
 
-from hypothesis import assume, given, reject, settings
+from hypothesis import HealthCheck, assume, given, reject, settings
 from hypothesis import strategies as st
 from tests.strategies import scores
 
@@ -25,6 +25,11 @@ from aretz_texture.render.textural_schema import compact_schema
 
 SETTINGS = TexturalAnalysisSettings()
 HEAVY_EXAMPLES = 50  # the examples of these properties analyze two scores each
+# These properties draw a whole score and then a second, transformed one inside the test, so
+# the time hypothesis measures as input generation includes building scores. Its too_slow
+# health check then fires at random on a loaded machine although the property is sound; the
+# number of examples is capped instead to bound the time.
+HEAVY_SETTINGS = settings(max_examples=HEAVY_EXAMPLES, suppress_health_check=[HealthCheck.too_slow])
 
 # Ties of the two halves of an event split in two, so that the first half attacks exactly
 # when the event did and the second half always attacks.
@@ -115,7 +120,7 @@ def test_every_linear_leaf_is_minus_d_by_restriction_5(score: Score) -> None:
                 assert leaf.features.attack_divergence.rule is DecisionRule.ATTACKS_WITHIN_TACTUS
 
 
-@settings(max_examples=HEAVY_EXAMPLES)
+@HEAVY_SETTINGS
 @given(st.data())
 def test_permuting_the_parts_keeps_phrases_features_and_leaves(data: st.DataObject) -> None:
     score = data.draw(scores())
@@ -129,7 +134,7 @@ def test_permuting_the_parts_keeps_phrases_features_and_leaves(data: st.DataObje
     )
 
 
-@settings(max_examples=HEAVY_EXAMPLES)
+@HEAVY_SETTINGS
 @given(st.data())
 def test_permuting_the_parts_keeps_the_compact_form_when_no_two_planes_share_a_register(
     data: st.DataObject,
@@ -168,7 +173,7 @@ def split_in_two(note_event: NoteEvent) -> tuple[NoteEvent, NoteEvent]:
     return halves[0], halves[1]
 
 
-@settings(max_examples=HEAVY_EXAMPLES)
+@HEAVY_SETTINGS
 @given(st.data())
 def test_an_added_attack_beside_the_attack_of_another_plane_makes_the_root_plus_d(
     data: st.DataObject,
