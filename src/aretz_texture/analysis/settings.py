@@ -60,6 +60,22 @@ class FeatureSettings(BaseModel):
     minimum_divergent_tactus_spans: PositiveCount = 1
 
 
+class NonChordToneSettings(BaseModel):
+    """Settings of the classification of non chord tones (spec 003, ADR 0007, readings 4 to 6)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    # Ratio of the tactus, from 0 to 1. Longest a passing tone, neighbor tone or anticipation
+    # may last; longer unaccented notes are heard as chord tones. 1/2 is an eighth in 4/4.
+    maximum_unaccented_duration: Proportion = Fraction(1, 2)
+    # Ratio of the tactus, from 0 to 1. Longest a suspension may sound after the tactus
+    # onset before its resolution; a later resolution makes it a chord tone.
+    maximum_suspension_duration: Proportion = Fraction(1)
+    # Semitones, from 1 to 3. Largest melodic interval heard as a step; 2 keeps the
+    # augmented second (3 semitones) a leap.
+    maximum_melodic_step_semitones: Annotated[int, Field(ge=1, le=3)] = 2
+
+
 class TexturalAnalysisSettings(BaseModel):
     """All settings of the textural analysis."""
 

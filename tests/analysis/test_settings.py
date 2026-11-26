@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from aretz_texture.analysis.settings import (
     DoublingSettings,
     FeatureSettings,
+    NonChordToneSettings,
     PhraseSegmentationSettings,
     TexturalAnalysisSettings,
 )
@@ -97,3 +98,33 @@ def test_proportion_of_exactly_one_is_accepted() -> None:
     settings = FeatureSettings(minimum_parallel_motion_proportion=Fraction(1))
 
     assert settings.minimum_parallel_motion_proportion == 1
+
+
+def test_non_chord_tone_defaults_are_those_of_spec_003() -> None:
+    settings = NonChordToneSettings()
+
+    assert settings.maximum_unaccented_duration == Fraction(1, 2)
+    assert settings.maximum_suspension_duration == Fraction(1)
+    assert settings.maximum_melodic_step_semitones == 2
+
+
+def test_non_chord_tone_settings_are_immutable() -> None:
+    settings = NonChordToneSettings()
+
+    with pytest.raises(ValidationError):
+        settings.maximum_melodic_step_semitones = 1  # pyright: ignore[reportAttributeAccessIssue]
+
+
+@pytest.mark.parametrize("field", ["maximum_unaccented_duration", "maximum_suspension_duration"])
+@pytest.mark.parametrize("proportion", [Fraction(0), Fraction(-1, 10), Fraction(11, 10)])
+def test_non_chord_tone_duration_outside_zero_to_one_is_rejected(
+    field: str, proportion: Fraction
+) -> None:
+    with pytest.raises(ValidationError):
+        NonChordToneSettings.model_validate({field: proportion})
+
+
+@pytest.mark.parametrize("semitones", [0, 4])
+def test_a_melodic_step_outside_one_to_three_semitones_is_rejected(semitones: int) -> None:
+    with pytest.raises(ValidationError):
+        NonChordToneSettings(maximum_melodic_step_semitones=semitones)
