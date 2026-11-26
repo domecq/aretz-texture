@@ -1,7 +1,7 @@
 # ADR 0006: pure harmonic analysis, with music21 only writing the names
 
 Date: November 25, 2026
-Status: Proposed, with spec 003
+Status: Accepted, November 26, 2026, with spec 003
 
 ## Context
 

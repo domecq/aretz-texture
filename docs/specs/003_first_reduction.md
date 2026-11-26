@@ -1,8 +1,8 @@
 # Spec 003: first four voice reduction of the chorales
 
 Issue: #25, "Spec 003: first four voice reduction of the chorales"
-Status: Draft, November 25, 2026, awaiting gate 1
-Related: ADR 0003 (music21 boundary), ADR 0005 (readings of spec 002), ADR 0006 (pure harmonic analysis, Proposed), ADR 0007 (harmonic readings for the chorales, Proposed), spec 002
+Status: Approved by Nico, November 26, 2026 (gate 1)
+Related: ADR 0003 (music21 boundary), ADR 0005 (readings of spec 002), ADR 0006 (pure harmonic analysis, Accepted), ADR 0007 (harmonic readings for the chorales, Accepted), spec 002
 
 **Main points to review:** the slices and where the first Sibelius output appears (section 2, "Delivery"); harmonic segmentation (section 3.4); the decision to keep harmonic analysis pure (ADR 0006); the open questions of section 8. Every musical choice is marked **theory** (with source) or **project**.
 
@@ -170,7 +170,7 @@ def segment_harmony(
 
 Each rule reads only the note and its adjacent notes in the raw score, never other classifications, so the result does not depend on the order of evaluation. The four kinds cannot apply to the same note (accent and the motion after the note tell them apart). Consonance is not checked for the three unaccented kinds (project: in the chorales an unaccented consonant passing tone does not change the harmony). The interval classes of dissonance are named constants of music theory, not settings: `DISSONANT_INTERVAL_CLASSES = {1, 2, 10, 11}` and `DISSONANT_ABOVE_BASS_INTERVAL_CLASSES = {5}`.
 
-**Reduced verticalities** (project). At every attack of a sounding note in the phrase, the reduced verticality is the set of pitches sounding there that are chord tones: a passing tone, neighbor tone or anticipation counts nowhere; a suspension counts as a chord tone before t and, from t until it ends, is replaced by its resolution (**pending, open question 2**: resolved directly).
+**Reduced verticalities** (project). At every attack of a sounding note in the phrase, the reduced verticality is the set of pitches sounding there that are chord tones: a passing tone, neighbor tone or anticipation counts nowhere; a suspension counts as a chord tone before t and, from t until it ends, is replaced by its resolution (decided by Nico on November 26, 2026 (open question 2): resolved directly).
 
 **Windows** (project, ADR 0007 reading 7). Walking the reduced verticalities of a phrase in order, the first one that is not empty opens a window; each later one opens a new window when it holds a pitch class the current window does not hold, or when its lowest pitch has another pitch class than the lowest of the window; otherwise it joins the current window, so a reattacked chord or a chord losing a voice continues. A window's chord tones are those of the verticality that opened it. Windows are contiguous: each ends where the next begins, and the last ends at the latest end of a sounding note of the phrase, so rests after a final fermata stay rests. Silence before the first attack of a phrase belongs to no window.
 
@@ -275,7 +275,7 @@ def roman_numeral(chord: ChordIdentity, key: LocalKey) -> RomanNumeral: ...  # c
 def phrase_key(notes: tuple[SoundingNote, ...], settings: KeySettings) -> LocalKey: ...
 ```
 
-**Key of a phrase** (theory: Krumhansl and Kessler 1982 profiles, Krumhansl 1990 key finding; one key per phrase is project, **pending, open question 4**). Sum the durations of the sounding notes of the phrase per pitch class, non chord tones included, and choose among the 24 keys the profile rotation with the greatest correlation. The ranking is computed exactly with `Fraction`: the sign of the covariance times its square, over the variance of the profile, which orders keys as the correlation does without square roots. Ties go to the key closest to the key signature of the lowest plane's part, then major before minor. The tonic takes the spelling of its pitch class with the longest duration in the phrase, or, when absent, the spelling with the fewest accidentals in its key signature.
+**Key of a phrase** (theory: Krumhansl and Kessler 1982 profiles, Krumhansl 1990 key finding; one key per phrase is project, decided by Nico on November 26, 2026 (open question 4)). Sum the durations of the sounding notes of the phrase per pitch class, non chord tones included, and choose among the 24 keys the profile rotation with the greatest correlation. The ranking is computed exactly with `Fraction`: the sign of the covariance times its square, over the variance of the profile, which orders keys as the correlation does without square roots. Ties go to the key closest to the key signature of the lowest plane's part, then major before minor. The tonic takes the spelling of its pitch class with the longest duration in the phrase, or, when absent, the spelling with the fewest accidentals in its key signature.
 
 ```python
 # Probe tone ratings of Krumhansl and Kessler (1982), from the tonic up by semitone.
@@ -329,7 +329,7 @@ class HarmonicAnalysisSettings(BaseModel):
 
 The values are exact decimal fractions, so no float enters the analysis; a validator requires twelve positive values per profile. They match the published table as reproduced in the AMADS library documentation (checked November 25, 2026); the implementer checks them once more against Krumhansl (1990).
 
-**Roman numeral** (project, following common textbook practice, ADR 0007 reading 10). Degree from the letter distance between tonic and root. Accidental before the numeral (`b`, `#`) from the root's alter against the reference scale: the major scale in major; in minor the natural minor scale, except that a root on the raised seventh takes none (V, vii°). Uppercase for major, augmented, dominant seventh and major seventh; lowercase otherwise. Marks: `°` diminished triad, `°7` diminished seventh, `ø7` half diminished, `+` augmented, `M7` major seventh, `7` the other sevenths. Figures: triads `""`, `6`, `64`; sevenths `7`, `65`, `43`, `42`, replacing the `7`. Examples: G7/B in C is `V65` (the verified music21 figure); B D F A in C is `viiø7`; G# B D F in A minor is `vii°7`; Bb/D in A minor is `bII6`; G major in A minor is `VII`; C/G in C is `I64` (**pending, open question 2**, cadential six four). The marks `°` and `ø` are Latin 1 characters, present in every text font; `♭` and `♯` are avoided for Sibelius lyric fonts.
+**Roman numeral** (project, following common textbook practice, ADR 0007 reading 10). Degree from the letter distance between tonic and root. Accidental before the numeral (`b`, `#`) from the root's alter against the reference scale: the major scale in major; in minor the natural minor scale, except that a root on the raised seventh takes none (V, vii°). Uppercase for major, augmented, dominant seventh and major seventh; lowercase otherwise. Marks: `°` diminished triad, `°7` diminished seventh, `ø7` half diminished, `+` augmented, `M7` major seventh, `7` the other sevenths. Figures: triads `""`, `6`, `64`; sevenths `7`, `65`, `43`, `42`, replacing the `7`. Examples: G7/B in C is `V65` (the verified music21 figure); B D F A in C is `viiø7`; G# B D F in A minor is `vii°7`; Bb/D in A minor is `bII6`; G major in A minor is `VII`; C/G in C is `I64` (decided by Nico on November 26, 2026 (open question 2), cadential six four). The marks `°` and `ø` are Latin 1 characters, present in every text font; `♭` and `♯` are avoided for Sibelius lyric fonts.
 
 ### 3.7 Levels, voicing and the reduced score (003c, 003d)
 
@@ -351,9 +351,9 @@ def analyze_harmony(
 ) -> HarmonicAnalysis: ...
 ```
 
-**Level 2** (project, **pending, open question 1**): consecutive level 1 events of one phrase merge when both are identified with the same root and the same quality, whatever the inversion (I and I6 merge, V and V7 do not). The level 2 event spans its children and takes the reading of the first. Unidentified sonorities never merge. `cut` raises `ValueError` for levels 3 and 4, which are not computed.
+**Level 2** (project, decided by Nico on November 26, 2026 (open question 1)): consecutive level 1 events of one phrase merge when both are identified with the same root and the same quality, whatever the inversion (I and I6 merge, V and V7 do not). The level 2 event spans its children and takes the reading of the first. Unidentified sonorities never merge. `cut` raises `ValueError` for levels 3 and 4, which are not computed.
 
-**Voicing** (`voicing/planes.py`, project, **pending, open question 3**):
+**Voicing** (`voicing/planes.py`, project, decided by Nico on November 26, 2026 (open question 3)):
 
 ```python
 class VoicedChord(BaseModel):
@@ -422,16 +422,16 @@ def write_piano_score(
 ```
 
 * **Chord symbols** above the upper staff: `render/chord_names.py` builds a music21 `harmony.ChordSymbol` from root, kind and bass, never from a figure or from pitches (ADR 0006), and inserts it at its onset in the upper staff, so the exporter writes `<harmony>`. Unidentified sonorities get no symbol.
-* **Roman numerals below the bass** (project, **open question 5**): music21 drops `RomanNumeral` objects on export, so each numeral is written as a lyric on the note of staff voice 2 of the lower staff (the bass) at its onset. Lyrics sit below the staff, align with the note, and Sibelius imports them as lyrics, which teachers already use for Roman numerals. An unidentified sonority writes `?`. The key label goes before the first numeral of the first phrase and of every phrase whose key differs from the previous one.
+* **Roman numerals below the bass** (project, decided by Nico on November 26, 2026, open question 5): music21 drops `RomanNumeral` objects on export, so each numeral is written as a lyric on the note of staff voice 2 of the lower staff (the bass) at its onset. Lyrics sit below the staff, align with the note, and Sibelius imports them as lyrics, which teachers already use for Roman numerals. An unidentified sonority writes `?`. The key label goes before the first numeral of the first phrase and of every phrase whose key differs from the previous one.
 * The default `chord_names` is empty, so `piano` and every existing call are unchanged. The grand staff reader ignores harmonies and lyrics.
 
 ### 3.9 Command (003c, 003d)
 
 ```text
-aretz-texture reduce SOURCE --output PATH [--names {symbols,roman,both,none}]
+aretz-texture reduce SOURCE --output PATH [--names {symbols,roman,both,none}] [--level {1,2}]
 ```
 
-Flow: `read_score`, `analyze_texture` and `analyze_harmony` with default settings, `cut(HARMONIC_RHYTHM)`, `voice_from_planes`, `reduction_score`, `chord_name_marks`, `piano_layout`, `write_piano_score`. `--names` defaults to `both` (open question 5). In 003c the command writes level 1 events with chord symbols and has no `--names`; 003d adds both. Exit codes and the lyrics line as in `piano`; `UnsupportedTextureError` exits with 1, and no file is written.
+Flow: `read_score`, `analyze_texture` and `analyze_harmony` with default settings, `cut(HARMONIC_RHYTHM)`, `voice_from_planes`, `reduction_score`, `chord_name_marks`, `piano_layout`, `write_piano_score`. `--names` defaults to `both` (open question 5). `--level` defaults to 2, harmonic rhythm; `--level 1` writes the level 1 events instead (`cut(SURFACE)`), the chorale almost as written with its chord names, for comparison with the source and in class (open question 1). In 003c the command writes level 1 events with chord symbols and has neither option; 003d adds both. Exit codes and the lyrics line as in `piano`; `UnsupportedTextureError` exits with 1, and no file is written.
 
 ### 3.10 Evaluation (`eval/reductions.py`, 003b, 003d)
 
@@ -494,7 +494,7 @@ def corpus_reduction_lines(settings: HarmonicAnalysisSettings) -> tuple[str, ...
 24. `phrase_key` of a phrase on the C major scale is C major, on A harmonic minor A minor; transposing a phrase by any interval with spelling transposes its key (hypothesis); equal correlations are broken as section 3.6 says.
 25. `roman_numeral` gives `V65` for G7/B in C major, the examples of section 3.6, and in C major `I`, `ii`, `iii`, `IV`, `V`, `vi`, `vii°`, `IM7`, `V42`, `I64`; in A minor `i`, `ii°`, `III`, `iv`, `V`, `VI`, `vii°`, `VII`, `#iv°7` (D# F# A C).
 26. Roman numerals do not change when chord and key are transposed together (hypothesis).
-27. Level 2: I then I6 make one event with two children and the reading of I; V then V7 stay two events; an unidentified sonority never merges; no event crosses a phrase.
+27. Level 2: I then I6 make one event with two children and the reading of I; V then V7 stay two events; an unidentified sonority never merges; no event crosses a phrase. `reduce bwv66.6 --level 1` writes one chord per level 1 event, and its default output equals `--level 2`.
 28. With `--names roman` the file has a lyric on the bass at every chord onset and no `<harmony>`; with `symbols` the reverse; `both` has both; `none` neither. The first numeral carries the key label, and so does the first numeral of a phrase whose key changes.
 29. The committed file is regenerated with keys, level 2 events and Roman numerals; its line for BWV 66.6 phrase 1 starts with the key of section 7, item 2.
 30. **Manual, by Nico:** the BWV 66.6 output opened in Sibelius shows chord symbols above and Roman numerals below the bass, readable.
@@ -551,6 +551,8 @@ Facts this spec relies on that need running code; the main session probes them a
 6. **Corpus estimate with the rules of 3.4 and 3.5:** the share of unidentified windows and their most frequent pitch sets; the number of windows shorter than one tactus; the number of windows where a plane other than the lowest has a chord tone below the bass plane (voice crossing); the number of level 2 merges. This sizes open questions 1 to 3 with examples.
 
 ## 8. Open questions for Nico
+
+All answered by Nico on November 26, 2026: he adopted the recommendations of questions 2 to 5, and for question 1 the recommended rule (same root and quality, inversion ignored, so V and V7 stay two chords) together with `--level 1`. He kept V and V7 apart on purpose: a reading that merges them by function would hide a trait he wants to see when studying the characteristic features of a work.
 
 1. **What counts as a change of function at level 2?** *Recommendation:* same root and same quality, inversion ignored: I and I6 are one chord, V and V7 two, C major and C7 two (the seventh may make it V7 of IV). The merged chord is named and voiced as its first window, so the reduction loses bass motion within a harmony (I to I6). This is also why "almost unchanged" holds at level 1 rather than level 2: should `reduce` offer `--level 1` as well? It costs a few lines, since level 1 is computed anyway.
 2. **Suspensions and the cadential six four.** Resolved directly, so the reduced chord at the beat is the chord of resolution and the suspension is only recorded in the traceability? And the cadential six four named `I64` as a chord of its own, rather than `V64` over a dominant? *Recommendation:* yes to both for this version (architecture, section 11 lists the first as open); showing suspensions belongs with the representative rhythm.
