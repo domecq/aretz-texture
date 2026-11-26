@@ -1,39 +1,25 @@
 from fractions import Fraction
 
-from tests.core_builders import (
-    divided_event,
-    event,
-    part_of,
-    score_of,
+from tests.analysis.harmony_scores import (
+    EIGHTH,
+    line,
+    pitch_text,
+    suspension_score,
+    tied_alto,
 )
+from tests.core_builders import divided_event, event, part_of, score_of
 
 from aretz_texture.analysis.attacks import stream_references
 from aretz_texture.analysis.non_chord_tones import classify_non_chord_tones
 from aretz_texture.analysis.settings import NonChordToneSettings
 from aretz_texture.analysis.sounding_notes import sounding_notes
 from aretz_texture.core.harmony import NonChordToneKind
-from aretz_texture.core.notation import NoteEvent, SpelledPitch, TieType
-from aretz_texture.core.score import Part, Score, TimeSignatureChange
+from aretz_texture.core.notation import SpelledPitch, TieType
+from aretz_texture.core.score import Score, TimeSignatureChange
 from aretz_texture.core.texture import TimeSpan
 
 DEFAULTS = NonChordToneSettings()
-EIGHTH = Fraction(1, 2)
 THREE_TWO = TimeSignatureChange(onset=Fraction(0), numerator=3, denominator=2)
-
-
-def line(*notes: tuple[str | None, Fraction | int], onset: Fraction | int = 0) -> list[NoteEvent]:
-    """Return consecutive events from an onset, one per (pitch, duration); None is a rest."""
-    cursor = Fraction(onset)
-    events: list[NoteEvent] = []
-    for pitch, duration in notes:
-        if pitch is not None:
-            events.append(event(cursor, duration, pitch))
-        cursor += Fraction(duration)
-    return events
-
-
-def pitch_text(pitch: SpelledPitch) -> str:
-    return f"{pitch.step}{'#' * pitch.alter}{'b' * -pitch.alter}{pitch.octave}"
 
 
 def classified(
@@ -163,22 +149,6 @@ def test_an_anticipation_must_be_followed_by_the_same_pitch_on_the_next_beat() -
     score = soprano_score(("E5", 2), ("D5", EIGHTH), ("C5", EIGHTH), (None, 1), ("C5", 4))
 
     assert classified(score) == []
-
-
-def suspension_score(alto: list[NoteEvent]) -> Score:
-    """Return a score with an alto over G4, D4 and G2, each held for two bars."""
-    parts: list[Part] = [part_of(alto)]
-    parts += [part_of([event(0, 4, pitch), event(4, 4, pitch)]) for pitch in ("G4", "D4", "G2")]
-    return score_of(*parts)
-
-
-def tied_alto(resolution: str, resolves_at: Fraction) -> list[NoteEvent]:
-    """Return an alto C4 from beat 4 tied over the bar line, then the resolution."""
-    return [
-        event(3, 1, "C4", tie=TieType.START),
-        event(4, resolves_at - 4, "C4", tie=TieType.STOP),
-        event(resolves_at, 8 - resolves_at, resolution),
-    ]
 
 
 def test_a_tied_over_dissonance_resolving_down_by_step_within_a_beat_is_a_suspension() -> None:
