@@ -25,3 +25,7 @@ class GrandStaffMappingError(AretzTextureError):
         """
         super().__init__(message)
         self.part_count = part_count
+
+
+class SilentPhraseError(AretzTextureError):
+    """A phrase has no attack, so it has no plane and no textural configuration."""
