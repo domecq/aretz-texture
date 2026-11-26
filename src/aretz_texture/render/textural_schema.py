@@ -35,6 +35,11 @@ _CLOSING_WORDS = {
 }
 
 
+def closing_label(closing: PhraseClosing) -> str:
+    """Return how a phrase closing is written in headings and lists: `fermata` and the like."""
+    return _CLOSING_WORDS[closing]
+
+
 def _decisions_in_order(configuration: TexturalConfiguration) -> list[tuple[str, FeatureDecision]]:
     features = configuration.features
     by_feature = {
@@ -109,7 +114,7 @@ def _phrase_block(phrase_texture: PhraseTexture, *, explain: bool) -> list[str]:
     phrase = phrase_texture.phrase
     heading = (
         f"Phrase {phrase.number}, bars {phrase.first_bar_number} to {phrase.last_bar_number}, "
-        f"closing: {_CLOSING_WORDS[phrase.closing]}"
+        f"closing: {closing_label(phrase.closing)}"
     )
     configuration = phrase_texture.configuration
     return [
