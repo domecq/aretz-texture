@@ -3,7 +3,12 @@ from fractions import Fraction
 import pytest
 from tests.core_builders import event, part_of, score_of
 
-from aretz_texture.analysis.metric_grid import tactus_duration, tactus_label, tactus_spans
+from aretz_texture.analysis.metric_grid import (
+    tactus_at,
+    tactus_duration,
+    tactus_label,
+    tactus_spans,
+)
 from aretz_texture.core.score import Bar, Score, TimeSignatureChange
 from aretz_texture.core.texture import TimeSpan
 
@@ -128,3 +133,15 @@ def test_the_second_piece_of_a_split_bar_continues_the_numbering_of_its_virtual_
         *[f"bar 2, tactus {n}" for n in (1, 2, 3, 4)],
         *[f"bar 3, tactus {n}" for n in (1, 2, 3, 4)],
     ]
+
+
+def test_the_tactus_at_a_moment_is_that_of_the_meter_of_its_bar() -> None:
+    score = score_of(
+        part_of([event(0, 4, "C4")]),
+        bar_durations=(4, 6),
+        time_signatures=(meter(4, 4), meter(3, 2, onset=4)),
+    )
+
+    assert tactus_at(score, Fraction(3)) == 1
+    assert tactus_at(score, Fraction(4)) == 2
+    assert tactus_at(score, Fraction(19, 2)) == 2
