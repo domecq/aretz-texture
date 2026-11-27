@@ -10,7 +10,7 @@ import sys
 from aretz_texture.analysis.settings import TexturalAnalysisSettings
 from aretz_texture.analysis.texture import analyze_texture
 from aretz_texture.core.texture import TexturalAnalysis
-from aretz_texture.ingest.sources import list_corpus_chorales, read_score
+from aretz_texture.ingest.sources import list_distinct_corpus_chorales, read_score
 from aretz_texture.render.textural_schema import closing_label, compact_schema
 
 
@@ -36,8 +36,7 @@ def phrase_lines(identifier: str, analysis: TexturalAnalysis) -> tuple[str, ...]
 def corpus_phrase_lines(settings: TexturalAnalysisSettings) -> tuple[str, ...]:
     """Analyze the distinct chorales of the corpus and write the lines of all their phrases.
 
-    Chorales are taken in the order of `list_corpus_chorales`, keeping the first
-    occurrence of each, since the listing names 21 files twice.
+    Chorales are taken in the order of `list_distinct_corpus_chorales`.
 
     Args:
         settings: The settings of the textural analysis.
@@ -46,7 +45,7 @@ def corpus_phrase_lines(settings: TexturalAnalysisSettings) -> tuple[str, ...]:
         The lines of every phrase of every chorale.
     """
     lines: list[str] = []
-    for identifier in dict.fromkeys(list_corpus_chorales()):
+    for identifier in list_distinct_corpus_chorales():
         analysis = analyze_texture(read_score(identifier).score, settings)
         lines += phrase_lines(identifier, analysis)
     return tuple(lines)

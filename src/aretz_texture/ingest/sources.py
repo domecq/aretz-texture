@@ -81,3 +81,12 @@ def list_corpus_chorales() -> tuple[str, ...]:
     distinct ones; each one is returned as the corpus lists it.
     """
     return tuple(str(name) for name in corpus.chorales.Iterator(returnType="filename"))
+
+
+def list_distinct_corpus_chorales() -> tuple[str, ...]:
+    """List the 350 distinct chorale identifiers, keeping the first place of each.
+
+    Returns:
+        The identifiers of `list_corpus_chorales` without the 21 that it names twice.
+    """
+    return tuple(dict.fromkeys(list_corpus_chorales()))

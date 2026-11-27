@@ -7,6 +7,7 @@ from aretz_texture.analysis.metric_grid import (
     tactus_at,
     tactus_duration,
     tactus_label,
+    tactus_position,
     tactus_spans,
 )
 from aretz_texture.core.score import Bar, Score, TimeSignatureChange
@@ -145,3 +146,26 @@ def test_the_tactus_at_a_moment_is_that_of_the_meter_of_its_bar() -> None:
     assert tactus_at(score, Fraction(3)) == 1
     assert tactus_at(score, Fraction(4)) == 2
     assert tactus_at(score, Fraction(19, 2)) == 2
+
+
+def test_a_moment_off_the_beat_is_placed_by_bar_tactus_and_offset_from_the_tactus_onset() -> None:
+    score = score_of(part_of([event(0, 1)]), bar_durations=(4, 4))
+
+    assert tactus_position(score, Fraction(0)) == (1, 1, 0)
+    assert tactus_position(score, Fraction(7, 2)) == (1, 4, Fraction(1, 2))
+    assert tactus_position(score, Fraction(9, 2)) == (2, 1, Fraction(1, 2))
+
+
+def test_a_moment_in_a_short_pickup_is_placed_in_its_virtual_bar() -> None:
+    score = score_of(part_of([event(0, 1)]), bar_durations=(Fraction(3, 2), 4))
+
+    assert tactus_position(score, Fraction(0)) == (0, 3, Fraction(1, 2))
+    assert tactus_position(score, Fraction(1, 2)) == (0, 4, 0)
+
+
+def test_the_label_of_a_tactus_span_is_the_position_of_its_onset() -> None:
+    score = score_of(part_of([event(0, 1)]), bar_durations=(1, 4, 4))
+    first, second = tactus_spans(score, span(0, 2))
+
+    assert tactus_position(score, first.onset)[:2] == (0, 4)
+    assert tactus_label(score, second) == "bar 1, tactus 1"
