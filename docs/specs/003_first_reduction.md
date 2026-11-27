@@ -557,7 +557,7 @@ Facts this spec relies on that need running code; the main session probes them a
    * **Anticipation:** none in BWV 66.6. BWV 347 has one: Alto E4, bar 7, tactus 3, half a beat after the onset; the alto goes F#4, E4, E4 and the eighth E4 sounds the note of the next beat early.
    * Two readings of the rules to know. In bar 7 (phrase 5) the alto F#4 on the first beat is a suspension resolving to E#4, and that E#4 is itself a neighbor tone between two F#4: both fire. The syncopated Tenor C#4 of bar 8 (from beat 2, a second over the bass B2 at beat 3, resolving to B3 at beat 4) is a suspension; the Alto E4 of the same bar is not, because it is already dissonant when it starts, over the soprano F#4 (a second), so its preparation is not consonant.
 
-   The key and the final chord are left to 003b and 003d.
+   *Final chord, established November 27, 2026 (003b):* the last window of BWV 66.6, from 35 to 36 in bar 9 (a bar of three quarters) under the fermata, is `F#`, F sharp major in root position: soprano F#4, alto C#4, tenor A#3, bass F#3. The chorale is in F sharp minor (three sharps), so the raised third A#3 in the tenor makes it a Picardy third: the expected ending. The reading is the chord of the score; the analysis repairs nothing. The phrase 6 line of the committed file ends `9.1 Bm/D | 9.2 Bm | 9.3 F#`. The keys of the six phrases are left to 003d.
 3. **`<harmony>` from a ChordSymbol built from root, kind and bass** (no figure): music21 writes root, kind, inversion and bass; in which container it must be inserted (measure of the upper `PartStaff`, not a `Voice`) to appear above the upper staff; the grand staff reader ignores it. *Verified November 25, 2026:* `ChordSymbol(root='G', bass='B', kind='dominant-seventh')` inserted at offset 0 of the measure of the upper `PartStaff` is written as `<harmony>` with root G, kind `dominant`, inversion 1, bass B and `<staff>1</staff>`, before the first note, and reads back as `G7/B`. Whether `read_score` ignores it is left to 003c.
 4. **Lyrics on staff voice 2 of the lower staff:** exported as `<lyric>` below the staff, read back, with `°`, `ø`, `#`, `/` and `:` intact. *Verified November 25, 2026:* a lyric `f#: vii°7/V bII6 iiø7` on voice 2 of the lower `PartStaff` is written as one `<lyric>` and reads back unchanged.
 5. **Durations:** whether `write_piano_score` writes and reads back exactly a note of 5/2 or 7/4 quarter lengths inside a bar, and a note starting off the beat that crosses it. If not, `reduction_score` splits durations into single note values itself (section 3.7). *Verified November 25, 2026:* `write_piano_score` writes 5/2 as a half tied to an eighth and 9/4 as a half tied to a sixteenth, 7/4 as one double dotted quarter, and a dotted half starting on the second eighth as one note; `read_score` reads them back with the same sounding durations, the split values as tied events. So `reduction_score` does not need to split durations; comparisons must join ties into sounding notes.
@@ -574,6 +574,34 @@ Facts this spec relies on that need running code; the main session probes them a
    A voice crossing is a window whose lowest plane has a plane note and some other plane has a plane note lower than it, for example the tenor below the bass. Examples of short windows: BWV 269, bar 3, tactus 2, two windows of an eighth each; BWV 347, bar 0, tactus 4 (the pickup), the same. Examples of crossing: BWV 83.5, phrase 3, bar 6, tactus 3 (soprano G4, alto D4, tenor G3 below the bass B3); BWV 10.7, phrase 2, bar 7, tactus 3 (C5, Eb4, tenor G3 below the bass C4); BWV 320, phrase 2, bar 4, tactus 2 (tenor F3 below the bass A3). Crossings are about 1 window in 185 of the four plane chorales.
 
    The windows are read at the instants of section 3.4: attacks of notes that are not passing tones, neighbor tones or anticipations, ends of chord tones before the end of the phrase where their voice rests, and the tactus onsets of suspensions. Two earlier readings of 003a gave other counts over the 333 (and over the 350): attacks only, 17279 windows and 3691 shorter than a tactus (18642 and 4330); ends of every chord tone, 19994 and 8818 (21471 and 9666), before the narrowing of the rule. The ends where the voice continues were the cause: of the 21471 windows of that reading, 3751 started exactly where a passing tone, neighbor tone or anticipation started, because the chord tone it replaces ends there and the verticality lacks the voice. With the narrowed rule 1076 of the 18727 windows start where such an ornament starts; they were not inspected one by one. The pickup of BWV 66.6, with three parallel passing tones, is one window again, the A major chord C#5, E4, A3, A3 from 0 to 1. The suspension rule with a consonant preparation lowers the suspensions of the corpus from 3007 to 2501.
+
+   *Unidentified windows, established November 27, 2026 (003b, default settings):*
+
+   | | 333 with four planes | all 350 |
+   |---|---|---|
+   | Harmonic windows | 17362 | 18727 |
+   | Unidentified windows | 1425 (8.2%) | 1656 (8.8%) |
+   | Chorales with at least one | 305 of 333 | 322 of 350 |
+   | Unidentified and shorter than a tactus | 847 (59%) | 1015 (61%) |
+   | With one, two, three, four or more pitch names | 111, 332, 533, 449 | 127, 371, 588, 570 |
+
+   Of the 1656 unidentified windows of the 350, by reason: 857 have no third above any pitch, 687 have no root from which all the names stack in thirds, 108 have a root but intervals outside the vocabulary, and 4 have two spellings of one letter (F and F#, G and G# twice, A and A#). Their most frequent pitch class sets, with a few places, written as bar and tactus (`+1/2` is half a quarter after the tactus onset):
+
+   | Windows | Pitch names | Musical reading | Places |
+   |---|---|---|---|
+   | 71 | D G A | suspended chord, a fourth or a second in place of the third (Dsus4 or Gsus2) | BWV 267 bar 15 tactus 2 (A4 D4 G3 D3); BWV 248.12-2 bar 4 tactus 1 |
+   | 61 | D E A | suspended chord (Asus4 or Dsus2) | BWV 184.5 bar 4 tactus 3 (E5 E4 D4 A3); BWV 36.8-2 bar 5 tactus 2 |
+   | 58 | D A | open fifth: the third is missing, or still a non chord tone | BWV 302 bar 4 tactus 1+1/2; BWV 415 bar 9 tactus 2+1/2; BWV 41.6 bar 16 tactus 2 |
+   | 52 | E A B | suspended chord (Esus4 or Asus2) | BWV 153.1 bar 4 tactus 2; BWV 86.6 bar 1 tactus 2 |
+   | 50 | C G | open fifth | BWV 277 bar 6 tactus 2+1/2; BWV 351 bar 3 tactus 3 |
+   | 49 | C D G | suspended chord (Gsus4 or Csus2) | BWV 267 bar 2 tactus 2; BWV 38.6 bar 9 tactus 2 |
+   | 46 | D G | open fourth | BWV 28.6 bar 8 tactus 2; BWV 41.6 bar 6 tactus 3+1/2 |
+   | 42, 31 | E A, E B | open fourth, open fifth | BWV 347 bar 5 tactus 4+1/2 and bar 11 tactus 3+1/2 |
+   | 34, 24 | C F G, C F Bb | suspended chords (Csus4 or Fsus2, Fsus4 or Bbsus2) | BWV 351 bar 5 tactus 2; BWV 159.5 bar 16 tactus 1+3/4 |
+
+   The aggregate reading. Of the 1158 unidentified windows with three or more names, 540 become an identified chord when one pitch name other than the bass is removed (Dm with an E, G with an A, Am with a B, D with an E, Em7/D with an A): a chord plus a non chord tone that 003a keeps as a chord tone, because accented passing tones, appoggiaturas and unprepared suspensions are out of scope (section 2, Out). Of the 498 windows with one or two names, 472 (95%) are shorter than a tactus and 396 (80%) removed a non chord tone: they are eighth note moments in which the voice that carries the third is a non chord tone or has not yet arrived. Over all the unidentified windows the share shorter than a tactus is 61%. A window with a single pitch name (127 in all) is a unison or an octave on an offbeat eighth, as in BWV 86.6 bar 4, tactus 1+1/2 (B4 and B3). No unidentified window has the pitch classes of a dominant seventh, so none is a German sixth chord, and the spec's example Ab C Eb F# reads as a root F# with a diminished third, fifth and seventh: outside the vocabulary, with the reason saying so. Two further groups stand out. The sets C E G# B, C# E F A, D F# A Bb and C# D F# A# (15, 13, 9 and 10 windows) are each a major triad with a note a minor sixth over its root (E G# B with C, A C# E with F, D F# A with Bb, F# A# C# with D), reported as outside the vocabulary. And 28 windows are diminished seventh chords without their fifth (for example C# E Bb), which the rule "an absent fifth is read as perfect" cannot name.
+
+   The identified windows have these qualities in the 350: 9165 major, 4465 minor, 637 diminished, 115 augmented, 913 dominant seventh, 166 major seventh, 686 minor seventh, 492 half diminished seventh and 432 diminished seventh, 17071 in all.
 
 ## 8. Open questions for Nico
 

@@ -24,13 +24,15 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Bass**: the lowest voice of the four voice harmonic reduction, the actual bass chosen by analysis. It is never a part of the source, even one named Bass. Concept, not yet implemented.
 
-**Chord identity** (`ChordIdentity`): what a harmonic window is as a chord: its root, its chord quality, its bass as a pitch name and its inversion, found by stacking the spelled pitches of its chord tones in thirds (ADR 0007, reading 8). Defined by spec 003 (003b); not yet implemented.
+**Chord identity** (`ChordIdentity`): what a harmonic window is as a chord: its root, its chord quality, its bass as a pitch name and its inversion, found by stacking the spelled pitches of its chord tones in thirds (ADR 0007, reading 8). Defined by spec 003 (003b); the model is in `core/harmony.py` and the identification is in `analysis/chords.py` (`identify_chord`).
 
-**Chord quality** (`ChordQuality`): the kind of a chord by the sizes of its third, fifth and seventh above the root: major, minor, diminished or augmented triad, or dominant, major, minor, half diminished or diminished seventh chord. Its values are the MusicXML `<kind>` names. Defined by spec 003 (003b); not yet implemented.
+**Chord quality** (`ChordQuality`): the kind of a chord by the sizes of its third, fifth and seventh above the root: major, minor, diminished or augmented triad, or dominant, major, minor, half diminished or diminished seventh chord. Its values are the MusicXML `<kind>` names. Defined by spec 003 (003b); the model is in `core/harmony.py`, and the sizes of the intervals that give each quality are the vocabulary of `analysis/chords.py`.
 
-**Chord symbol** (`ChordIdentity.symbol`, `ChordSymbolMark`): the name of a chord by its root, quality and bass, such as `G7/B`, written above the upper staff as a MusicXML `<harmony>` element; one of the two chord names of the reduction. Defined by spec 003 (003b and 003c); not yet implemented.
+**Chord symbol** (`ChordIdentity.symbol`, `ChordSymbolMark`): the name of a chord by its root, quality and bass, such as `G7/B`, written above the upper staff as a MusicXML `<harmony>` element; one of the two chord names of the reduction. The string is `ChordIdentity.symbol` (003b, ASCII: `G7/B`, `Bdim`, `F#m7b5`, `Bbmaj7`, `Ebaug`, `C#dim7/E`); the mark that writes it on the score comes in 003c. Defined by spec 003 (003b and 003c).
 
 **Chord tone**: a pitch sounding in a harmonic window that belongs to its harmony, that is, not removed as a non chord tone; a suspension's resolution takes the suspension's place from the tactus onset. Defined by spec 003 (003a); the removal and the replacement of a suspension are in `analysis/harmonic_segmentation.py`.
+
+**Chord vocabulary** (`CHORD_VOCABULARY`): the nine chord qualities that `identify_chord` names, by the sizes in semitones of the third, the fifth and the seventh above the root: major (4, 7), minor (3, 7), diminished (3, 6) and augmented (4, 8) triads, and dominant (4, 7, 10), major (4, 7, 11), minor (3, 7, 10), half diminished (3, 6, 10) and diminished (3, 6, 9) seventh chords. An absent fifth is read as perfect. Anything else is an unidentified sonority (ADR 0007, reading 8). Defined by spec 003 (003b); implemented in `analysis/chords.py`.
 
 **Compact form** (`compact_schema`): a textural configuration written on one line in Fessel's bracket notation, features in the order P, H, L, C, D and children after their parent's features, with identical sibling configurations printed once, as in `[+P, +H, +C, +D [-P, +H, +L, +C, -D]]` (Fessel, 1996, p. 86). Defined by spec 002; implemented in `core/texture.py` and `render/textural_schema.py`.
 
@@ -52,6 +54,8 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Duration** (`NoteEvent.duration`, `Bar.duration`): how long an event or bar lasts, in quarter lengths, as an exact fraction.
 
+**Evaluation of the reduction** (`reduction_lines`, `corpus_reduction_lines`): the committed file `tests/eval/expected_reductions.txt`, with one line per phrase of the 350 distinct chorales (`identifier: phrase N, bars A to B: POSITION SYMBOL | ...`) and, after the phrase lines of a chorale that has a phrase without exactly four planes, one line `identifier: not voiced: phrase N has P planes`. Any change of the segmentation or of the chord naming shows as a change of lines in review. Defined by spec 003 (003b); implemented in `eval/reductions.py`.
+
 **Event pitch** (`EventPitch`): one pitch of a note event or grace note together with its tie.
 
 **Feature decision** (`FeatureDecision`): the value of one textural feature at one node, with the rule that decided it (`DecisionRule`) and an explanation naming bars and tactus spans, so a musician can see the factor behind the reading (Fessel, 2000, p. 88). Defined by spec 002; the model is in `core/texture.py`, and the decisions are produced by `analysis/features.py`.
@@ -68,9 +72,9 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Grand staff** (`GrandStaffLayout`): the two staff system of piano music, an upper staff in treble clef for the right hand and a lower staff in bass clef for the left hand, joined by a brace. `PIANO_LAYOUT` places parts 1 and 2 in score order on the upper staff and parts 3 and 4 on the lower one.
 
-**Granularity level** (`GranularityLevel`): how coarse the harmonic reduction is: 1 surface (every harmonic window), 2 harmonic rhythm (one chord per change of function), 3 prolongation and 4 phrase (architecture, section 8). Each level is a cut of the tree of harmonic events. Spec 003 computes levels 1 and 2; 3 and 4 are reserved. Defined by spec 003 (003b and 003d); not yet implemented.
+**Granularity level** (`GranularityLevel`): how coarse the harmonic reduction is: 1 surface (every harmonic window), 2 harmonic rhythm (one chord per change of function), 3 prolongation and 4 phrase (architecture, section 8). Each level is a cut of the tree of harmonic events. Spec 003 computes levels 1 and 2; 3 and 4 are reserved. Defined by spec 003 (003b and 003d); the enumeration is in `core/harmony.py`, level 1 is computed by `analyze_surface_harmony` and level 2 comes in 003d.
 
-**Harmonic event** (`HarmonicEvent`): a node of the tree of harmonic events: a time span, a granularity level, a reading (a chord identity or an unidentified sonority), the harmonic windows it covers and its children at the level below (architecture, section 4). Defined by spec 003 (003b); not yet implemented.
+**Harmonic event** (`HarmonicEvent`): a node of the tree of harmonic events: a time span, a granularity level, a reading (a chord identity or an unidentified sonority), the harmonic windows it covers and its children at the level below (architecture, section 4). Defined by spec 003 (003b); the model is in `core/harmony.py`. A level 1 event covers exactly one window and has no children (`analyze_surface_harmony` in `analysis/harmony.py`).
 
 **Harmonic reduction** (`Reduction`, `reduction_score`): the four voice chorale (soprano, alto, tenor, bass) that shows the harmonic structure supporting the texture, the product of the tool; the textural schema is its annex. In spec 003 it is a sequence of voiced chords at level 2, written on a grand staff with chord symbols and Roman numerals. Defined by spec 003 (003c); not yet implemented.
 
@@ -82,7 +86,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Indented form**: a textural configuration written one node per line, children indented under their parent and every plane on its own line with the labels of its streams; the readable form of the textural schema (spec 002). Defined by spec 002; implemented in `core/texture.py` and `render/textural_schema.py`.
 
-**Inversion** (`ChordIdentity.inversion`): which member of a chord is its bass: 0 the root (root position), 1 the third, 2 the fifth, 3 the seventh. Defined by spec 003 (003b); not yet implemented.
+**Inversion** (`ChordIdentity.inversion`): which member of a chord is its bass: 0 the root (root position), 1 the third, 2 the fifth, 3 the seventh. Defined by spec 003 (003b); computed in `analysis/chords.py`.
 
 **Key profile** (`KeySettings`): twelve weights saying how well each pitch class, counted from the tonic, fits a major or a minor key; spec 003 uses the probe tone ratings of Krumhansl and Kessler (1982) to find the local key. Defined by spec 003 (003d); not yet implemented.
 
@@ -168,6 +172,8 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Tactus** (`tactus_duration`): the time span within which attack divergence is judged (Fessel, 1996). In spec 002 it is the beat of the time signature: a quarter in 4/4 and 3/4, a half in 3/2, a dotted quarter in 6/8 and 12/8 (ADR 0005). Defined by spec 002; implemented in `analysis/metric_grid.py`.
 
+**Tactus position** (`tactus_position`): where a moment lies on the metric grid, as the bar number, the tactus number in that bar (counted as in `tactus_label`) and the quarter lengths after the onset of that tactus. The evaluation file writes it as `B.T`, or `B.T+F` when the offset F is not zero (`1.2+1/2`). Defined by spec 003 (003b); implemented in `analysis/metric_grid.py`.
+
 **Tactus span** (`tactus_spans`): one tactus on the bar grid, from a beat to the next. Spans tile each bar from its onset, except a pickup bar, which is tiled from its end so its spans fall on the last beats of a complete bar. Labels count tactus spans from 1 in the virtual complete bar, so the pickup of BWV 66.6 is "bar 0, tactus 4" and the second piece of a bar split in two continues the numbering of the first (`tactus_label`). Defined by spec 002; implemented in `analysis/metric_grid.py`.
 
 **Tenor**: the third voice from the top of the four voice harmonic reduction, chosen by analysis and voicing. It is never a part of the source, even one named Tenor. Concept, not yet implemented.
@@ -184,7 +190,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Time span** (`TimeSpan`): a stretch of the score from an onset to a later end, in quarter lengths from the start of the first bar; the span of a phrase and of every node of its textural configuration. Defined by spec 002; implemented in `core/texture.py`.
 
-**Unidentified sonority** (`UnidentifiedSonority`): the reading of a harmonic window whose chord tones are outside the chord vocabulary, such as an augmented sixth chord or an open fifth, with the reason. A reading, not an error: it has no chord symbol and its Roman numeral is `?`. Defined by spec 003 (003b); not yet implemented.
+**Unidentified sonority** (`UnidentifiedSonority`): the reading of a harmonic window whose chord tones are outside the chord vocabulary, such as an augmented sixth chord or an open fifth, with the reason. A reading, not an error: it has no chord symbol and its Roman numeral is `?`. In the evaluation file it is written `?(C,C#)`, its pitch names separated by commas. Defined by spec 003 (003b); the model is in `core/harmony.py`.
 
 **Unsupported texture** (`UnsupportedTextureError`): a score that is analyzed and named but that voicing cannot reduce, because some phrase does not have exactly four planes (spec 003). Defined by spec 003 (003c); not yet implemented.
 
