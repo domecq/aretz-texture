@@ -186,6 +186,6 @@ The `pre-commit` framework installed in the repo, so it applies equally to Claud
 Budget: under 20 seconds. A slow hook invites skipping it; heavy work goes to CI.
 
 ### Layer 4: CI (the final authority)
-GitHub Actions repeats the layer 3 checks and adds the full tests, coverage and the corpus evaluation. They are required checks in branch protection: even if a local hook failed or was skipped, nothing reaches `main` without passing here.
+GitHub Actions repeats the layer 3 checks and adds the full tests, coverage and the corpus evaluation. They run as parallel jobs: the static checks with the fast tests and their coverage, and the slow corpus tests in two shards, the round trip of the corpus alone and everything else. A last job, `checks`, passes only when all of them pass, and it is the required check in branch protection: even if a local hook failed or was skipped, nothing reaches `main` without passing here.
 
 Layers 1 and 2 help the agent; layers 3 and 4 are the guarantee. Quality is never entrusted to a single local mechanism.
