@@ -82,11 +82,29 @@ def tactus_label(score: Score, tactus_span: TimeSpan) -> str:
     Returns:
         The bar number as shown in the score and the tactus number in that bar.
     """
-    index = _bar_index_at(score, tactus_span.onset)
+    bar_number, tactus_number, _ = tactus_position(score, tactus_span.onset)
+    return f"bar {bar_number}, tactus {tactus_number}"
+
+
+def tactus_position(score: Score, moment: Fraction) -> tuple[int, int, Fraction]:
+    """Return where a moment lies on the metric grid: bar, tactus and offset in the tactus.
+
+    Numbering follows `tactus_label`: tactus spans count from 1 in the virtual complete bar.
+
+    Args:
+        score: The score whose bars give the grid.
+        moment: A moment inside the score, from 0 up to, not including, its end.
+
+    Returns:
+        The bar number as shown in the score, the tactus number in that bar and the quarter
+        lengths from the onset of that tactus to the moment (0 on the beat).
+    """
+    index = _bar_index_at(score, moment)
     bar = score.bars[index]
     tactus = tactus_duration(_time_signature_at(score, bar.onset))
-    position_in_virtual_bar = _virtual_bar_start(score, index) + tactus_span.onset - bar.onset
-    return f"bar {bar.number}, tactus {floor(position_in_virtual_bar / tactus) + 1}"
+    position_in_virtual_bar = _virtual_bar_start(score, index) + moment - bar.onset
+    beats_elapsed = floor(position_in_virtual_bar / tactus)
+    return bar.number, beats_elapsed + 1, position_in_virtual_bar - beats_elapsed * tactus
 
 
 def _time_signature_at(score: Score, onset: Fraction) -> TimeSignatureChange:
