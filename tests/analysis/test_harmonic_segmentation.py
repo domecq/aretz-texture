@@ -332,3 +332,15 @@ def test_a_note_carried_into_a_phrase_opens_no_window_before_its_first_attack() 
     windows = [window for window in windows_of(score) if window.phrase_number == 2]
 
     assert bounds(windows[0])[0] == Fraction(7, 2)
+
+
+def test_a_passing_tone_in_the_lowest_voice_opens_no_window_where_the_bass_note_ends() -> None:
+    score = score_of(
+        part_of([event(0, 4, "G4")]),
+        part_of([event(0, 4, "E4")]),
+        part_of(line(("C3", Fraction(3, 2)), ("D3", EIGHTH), ("E3", 2))),
+    )
+
+    windows = windows_of(score)
+
+    assert [bounds(window) for window in windows] == [(0, 2), (2, 4)]

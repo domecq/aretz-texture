@@ -163,7 +163,7 @@ def _reading_instants(
     """Return the instants at which a reduced verticality is read.
 
     Attacks of notes that are not passing tones, neighbor tones or anticipations (attacks of
-    suspensions count), ends before the end of the phrase of notes that are chord tones, and
+    suspensions count), ends before the end of the phrase of chord tones whose voice then rests, and
     the tactus onset of every suspension. A removed note is read nowhere: its attack would
     leave the verticality without its voice, and a window would open (ADR 0007, reading 7).
     The start of a tie chain clipped at the phrase boundary is no attack of this phrase.
@@ -180,7 +180,14 @@ def _reading_instants(
         if (stream.part_number, stream.voice_number, attack.onset) not in removed_attacks
     }
     phrase_end = max(note.end for note in notes)
-    ends = {note.end for note in notes if _key_of(note) not in removed and note.end < phrase_end}
+    continued = {(note.stream.part_number, note.stream.voice_number, note.onset) for note in notes}
+    ends = {
+        note.end
+        for note in notes
+        if _key_of(note) not in removed
+        and note.end < phrase_end
+        and (note.stream.part_number, note.stream.voice_number, note.end) not in continued
+    }
     suspensions = {tone.from_onset for tone in tones if tone.kind is NonChordToneKind.SUSPENSION}
     # Silence before the first attack belongs to no window, so notes carried into the phrase
     # that end before it are not read.

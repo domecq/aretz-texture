@@ -105,19 +105,13 @@ def test_bwv66_6_has_the_non_chord_tones_of_the_probe_by_kind() -> None:
     }
 
 
-def test_bwv66_6_pickup_with_three_passing_tones_leaves_only_the_alto_in_its_second_window() -> (
-    None
-):
-    first, second, third = windows_of("bach/bwv66.6")[:3]
+def test_bwv66_6_pickup_with_three_passing_tones_is_one_window_with_the_a_major_chord() -> None:
+    first, second = windows_of("bach/bwv66.6")[:2]
 
-    assert [(window.span.onset, window.span.end) for window in (first, second, third)] == [
-        (0, Fraction(1, 2)),
-        (Fraction(1, 2), 1),
-        (1, 2),
-    ]
+    assert (first.span.onset, first.span.end) == (0, 1)
     assert [pitch_text(pitch) for pitch in first.chord_tones] == ["C#5", "E4", "A3", "A3"]
-    assert [pitch_text(pitch) for pitch in second.chord_tones] == ["E4"]
-    assert len(second.non_chord_tones) == 3
+    assert len(first.non_chord_tones) == 3
+    assert second.span.onset == 1
 
 
 def test_bwv8_6_the_plane_of_bass_and_continuo_gives_the_lower_of_the_two() -> None:
@@ -223,5 +217,5 @@ def test_the_corpus_has_the_windows_counted_in_section_7_item_6_of_spec_003() ->
 
     assert len(identifiers) == 350
     assert len(four_planes) == 333
-    assert corpus_measures(four_planes) == (19994, 8818, 95)
-    assert corpus_measures(identifiers) == (21471, 9666, 137)
+    assert corpus_measures(four_planes) == (17362, 3807, 94)
+    assert corpus_measures(identifiers) == (18727, 4449, 136)
