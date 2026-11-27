@@ -54,6 +54,20 @@ def tactus_spans(score: Score, span: TimeSpan) -> tuple[TimeSpan, ...]:
     return tuple(clipped)
 
 
+def tactus_at(score: Score, moment: Fraction) -> Fraction:
+    """Return the tactus, in quarter lengths, of the bar that holds a moment.
+
+    Args:
+        score: The score whose bars and time signatures give the grid.
+        moment: A moment inside the score, from 0 up to, not including, its end.
+
+    Returns:
+        The tactus of the time signature in effect at the onset of that bar.
+    """
+    bar = score.bars[_bar_index_at(score, moment)]
+    return tactus_duration(_time_signature_at(score, bar.onset))
+
+
 def tactus_label(score: Score, tactus_span: TimeSpan) -> str:
     """Return the label of a tactus span for explanations, such as "bar 0, tactus 4".
 

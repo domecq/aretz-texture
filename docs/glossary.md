@@ -4,11 +4,15 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Accent coincidence** ([± accent coincidence], C, `TexturalFeatures.accent_coincidence`): the textural feature that asks whether the phenomenal accents of the planes of a configuration coincide, assuming compatible meters (Fessel, 1996). A `-P` configuration is always `+C` (cooccurrence restriction 3). In spec 002 a `+P` configuration is `+C` by a provisional rule, because every plane shares the score's meter; phenomenal accents are not modeled. Defined by spec 002; the model is in `core/texture.py`, and the rule is in `analysis/features.py` (`decide_root_accent_coincidence`).
 
+**Accented note**: a sounding note that starts at the onset of a tactus span; any other note is unaccented. The only metric weight of spec 003, with no strong and weak beats inside the bar (ADR 0007, reading 3). Defined by spec 003 (003a); the rule is in `analysis/non_chord_tones.py`.
+
+**Adjacent notes**: two sounding notes of one notated voice where the first ends exactly where the second begins, so there is no rest between them. Non chord tone rules read only adjacent notes. Defined by spec 003 (003a); the rule is in `analysis/non_chord_tones.py`.
+
 **Alter** (`SpelledPitch.alter`): the number of semitones an accidental moves a note away from its natural step: -2 double flat, -1 flat, 0 natural, 1 sharp, 2 double sharp.
 
 **Alto**: the second voice from the top of the four voice harmonic reduction, chosen by analysis and voicing. It is never a part of the source, even one named Alto. Concept, not yet implemented.
 
-**Anticipation** (`NonChordToneKind.ANTICIPATION`): an unaccented non chord tone, short, approached by melodic step and followed in its voice by the same pitch at the next tactus onset, where it belongs to the next harmony (ADR 0007, reading 5). Defined by spec 003 (003a); not yet implemented.
+**Anticipation** (`NonChordToneKind.ANTICIPATION`): an unaccented non chord tone, short, approached by melodic step and followed in its voice by the same pitch at the next tactus onset, where it belongs to the next harmony (ADR 0007, reading 5). Defined by spec 003 (003a); the rule is in `analysis/non_chord_tones.py`.
 
 **Association factors**: the factors that favor hearing a succession of sounds as one line: intervallic proximity, proximity of attacks, formal variability, directional convergence and timbral similarity (Fessel, 2000). Concept, not yet implemented.
 
@@ -26,7 +30,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Chord symbol** (`ChordIdentity.symbol`, `ChordSymbolMark`): the name of a chord by its root, quality and bass, such as `G7/B`, written above the upper staff as a MusicXML `<harmony>` element; one of the two chord names of the reduction. Defined by spec 003 (003b and 003c); not yet implemented.
 
-**Chord tone**: a pitch sounding in a harmonic window that belongs to its harmony, that is, not removed as a non chord tone; a suspension's resolution takes the suspension's place from the tactus onset. Defined by spec 003 (003a); not yet implemented.
+**Chord tone**: a pitch sounding in a harmonic window that belongs to its harmony, that is, not removed as a non chord tone; a suspension's resolution takes the suspension's place from the tactus onset. Defined by spec 003 (003a); the removal and the replacement of a suspension are in `analysis/harmonic_segmentation.py`.
 
 **Compact form** (`compact_schema`): a textural configuration written on one line in Fessel's bracket notation, features in the order P, H, L, C, D and children after their parent's features, with identical sibling configurations printed once, as in `[+P, +H, +C, +D [-P, +H, +L, +C, -D]]` (Fessel, 1996, p. 86). Defined by spec 002; implemented in `core/texture.py` and `render/textural_schema.py`.
 
@@ -72,7 +76,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Harmonic rhythm**: the rhythm of the changes of harmony; as a rhythmic mode of the reduction (architecture, section 9), each chord is attacked once and lasts as long as its harmonic event. Defined by spec 003 (003c); not yet implemented.
 
-**Harmonic window** (`HarmonicWindow`): a span of time over which a single harmony is considered to hold, the result of merging reduced verticalities in harmonic segmentation (architecture, section 3). In spec 003 a new window starts where a pitch class appears that the current window does not hold, or where its lowest chord tone changes pitch class; windows never cross a phrase (ADR 0007, reading 7). Each records its chord tones, the plane note of each plane and the non chord tones it removed. Defined by spec 003 (003a); not yet implemented.
+**Harmonic window** (`HarmonicWindow`): a span of time over which a single harmony is considered to hold, the result of merging reduced verticalities in harmonic segmentation (architecture, section 3). In spec 003 a new window starts where a pitch class appears that the current window does not hold, or where its lowest chord tone changes pitch class; windows never cross a phrase (ADR 0007, reading 7). Each records its chord tones, the plane note of each plane and the non chord tones it removed. Defined by spec 003 (003a); the model is in `core/harmony.py` and the segmentation is in `analysis/harmonic_segmentation.py` (`segment_harmony`).
 
 **Homogeneity** ([± homogeneity], H, `TexturalFeatures.homogeneity`): the textural feature that asks whether the planes of a configuration are homogeneous with each other: same harmonic field, simple proportions between their pulses, same spatial origin, similar timbre (Fessel, 1996). A `-P` configuration is always `+H` (cooccurrence restriction 2). In spec 002 a `+P` configuration is `+H` by a provisional rule that holds for a phrase with one time signature and no key signature change; outside those conditions `+H` is recorded as an assumption. Defined by spec 002; the model is in `core/texture.py`, and the rule is in `analysis/features.py` (`decide_root_homogeneity`).
 
@@ -92,13 +96,13 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Local key** (`LocalKey`): the key, tonic and mode, in which the harmonic events of a passage are named as Roman numerals. In spec 003 there is one per phrase, the key whose key profile best correlates with the durations of the pitch classes of the phrase (ADR 0007, reading 9). Defined by spec 003 (003d); not yet implemented.
 
-**Melodic step**: a melodic interval of one or two semitones between adjacent notes of a voice, chromatic steps included and the augmented second excluded (`maximum_melodic_step_semitones`). Not to be confused with step, the letter name of a pitch. Defined by spec 003 (003a); not yet implemented.
+**Melodic step**: a melodic interval of one or two semitones between adjacent notes of a voice, chromatic steps included and the augmented second excluded (`maximum_melodic_step_semitones`). Not to be confused with step, the letter name of a pitch. Defined by spec 003 (003a); the rule is in `analysis/non_chord_tones.py`.
 
-**Metric weight**: whether an onset is accented. In spec 003 a note is accented when it starts at the onset of a tactus span and unaccented otherwise; beat strength inside the bar is not modeled (ADR 0007, reading 3). Defined by spec 003 (003a); not yet implemented.
+**Metric weight**: whether an onset is accented. In spec 003 a note is accented when it starts at the onset of a tactus span and unaccented otherwise; beat strength inside the bar is not modeled (ADR 0007, reading 3). Defined by spec 003 (003a); the rule is in `analysis/non_chord_tones.py`.
 
-**Neighbor tone** (`NonChordToneKind.NEIGHBOR`): an unaccented, short non chord tone approached by melodic step and left by step in the opposite direction, back to the same pitch (ADR 0007, reading 5). Defined by spec 003 (003a); not yet implemented.
+**Neighbor tone** (`NonChordToneKind.NEIGHBOR`): an unaccented, short non chord tone approached by melodic step and left by step in the opposite direction, back to the same pitch (ADR 0007, reading 5). Defined by spec 003 (003a); the rule is in `analysis/non_chord_tones.py`.
 
-**Non chord tone** (`NonChordTone`): a sounding note, or the part of it from a tactus onset on, that does not belong to the harmony of its window and is removed by harmonic segmentation: a passing tone, neighbor tone, suspension or anticipation in spec 003. Defined by spec 003 (003a); not yet implemented.
+**Non chord tone** (`NonChordTone`): a sounding note, or the part of it from a tactus onset on, that does not belong to the harmony of its window and is removed by harmonic segmentation: a passing tone, neighbor tone, suspension or anticipation in spec 003. Defined by spec 003 (003a); the model is in `core/harmony.py` and the rules are in `analysis/non_chord_tones.py` (`classify_non_chord_tones`).
 
 **Notated voice** (`NotatedVoice`, `Part.voices`): one of the voices written on the staff of a part, as in MusicXML, holding its note events in order of onset with its own rhythm. Most parts have one; a part with two voices on its staff has two. A fact of the notation, not a line.
 
@@ -108,7 +112,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Part** (`Part`): one part of the source score as stored in the file, identified by its position in score order (part 1 is the top one), with its name and instrument name as metadata and one or more notated voices. Ingestion keeps every part; the number and names of the parts never decide the strata (ADR 0004).
 
-**Passing tone** (`NonChordToneKind.PASSING`): an unaccented, short non chord tone approached and left by melodic step in the same direction (ADR 0007, reading 5). Defined by spec 003 (003a); not yet implemented.
+**Passing tone** (`NonChordToneKind.PASSING`): an unaccented, short non chord tone approached and left by melodic step in the same direction (ADR 0007, reading 5). Defined by spec 003 (003a); the rule is in `analysis/non_chord_tones.py`.
 
 **Phrase** (`Phrase`): the local domain over which spec 002 computes one textural configuration. In the chorales a phrase ends at a fermata cluster; music with attacks after the last fermata is a last phrase, rests alone join the previous one, and a score without fermatas is one phrase (ADR 0005, a project decision, not Fessel's). Numbered from 1. Defined by spec 002; the model is in `core/texture.py`, and the segmentation is `segment_phrases` in `analysis/phrases.py`.
 
@@ -116,19 +120,19 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Pitch class** (`SpelledPitch.pitch_class()`): a pitch without its octave and spelling, as a number from 0 (C) to 11 (B). F sharp and G flat in any octave share pitch class 6.
 
-**Pitch name** (`PitchName`): the step and alter of a pitch without its octave, such as F sharp; it names roots, chord basses and tonics. Defined by spec 003 (003a); not yet implemented.
+**Pitch name** (`PitchName`): the step and alter of a pitch without its octave, such as F sharp; it names roots, chord basses and tonics. Defined by spec 003 (003a); the model is in `core/harmony.py`.
 
 **Pitch spelling** (`SpelledPitch`): a pitch written as step, alter and octave, so that enharmonic equivalents such as F sharp and G flat remain different.
 
 **Plane**: in Fessel (1996), an autonomous plane of musical organization distinguished in the simultaneity. In the code, the planes of a `+P` configuration are its children; a plane that is not divided further is a `-P` configuration. Spec 002 treats Fessel's plane (1996) and stratum (2000) as the same domain and keeps "stratum" for a plane with a characterization (open question 8 of spec 002). Defined by spec 002; implemented in `core/texture.py` and `render/textural_schema.py`. The planes of a phrase are ordered by register, highest first, by the mean sounding pitch of the pitches they attack in the phrase, ties broken by the first notated voice; the order is presentation only, since Fessel's configurations are unordered (1996, p. 79).
 
-**Plane note** (`PlaneNote`): the structural note of one plane in a harmonic window: its first chord tone sounding in the window, the lowest of its notated voices for the lowest plane and the highest for the others, with the notated voice it comes from. Voicing reads it. Defined by spec 003 (003a); not yet implemented.
+**Plane note** (`PlaneNote`): the structural note of one plane in a harmonic window: its first chord tone sounding in the window, the lowest of its notated voices for the lowest plane and the highest for the others, with the notated voice it comes from. Voicing reads it. Defined by spec 003 (003a); the model is in `core/harmony.py` and the choice is in `analysis/harmonic_segmentation.py`.
 
 **Planes** ([± planes], P, `TexturalFeatures.planes`): the textural feature that asks whether autonomous planes are distinguished in the simultaneity. `+P` says nothing about how many there are. In the code a configuration is `+P` exactly when it has two or more children. Defined by spec 002; the model is in `core/texture.py`, and the rule is in `analysis/features.py` (`decide_planes`).
 
 **Quarter length**: the unit of every time value in the code: one quarter note equals 1. An eighth note is 1/2 and a triplet eighth is 1/3.
 
-**Reduced verticality**: the chord tones sounding at one attack point of a phrase, after removing non chord tones; harmonic segmentation merges reduced verticalities into harmonic windows. Defined by spec 003 (003a); not yet implemented.
+**Reduced verticality**: the chord tones sounding at one instant of a phrase, after removing non chord tones; verticalities are read at attacks of notes that are not passing tones, neighbor tones or anticipations, at the ends of chord tones before the end of the phrase and at the tactus onsets of suspensions (spec 003, section 3.4); harmonic segmentation merges reduced verticalities into harmonic windows. Defined by spec 003 (003a); the walk is in `analysis/harmonic_segmentation.py`.
 
 **Rest fermata** (`RestFermata`, `NotatedVoice.rest_fermatas`): a fermata written on a notated rest. Rests are otherwise not stored (silence is the time not covered by note events), so a rest that carries a fermata is kept with the onset and duration of the notated rest, always inside a gap between the events of its notated voice. The writers give it exactly that onset and duration and never split it.
 
@@ -146,7 +150,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Soprano**: the highest voice of the four voice harmonic reduction, which takes the structural note of the melody chosen by analysis. It is never a part of the source, even one named Soprano. Concept, not yet implemented.
 
-**Sounding note** (`SoundingNote`): one pitch of a notated voice from its attack to the end of its tie chain, clipped to a phrase; the unit harmonic segmentation classifies. Defined by spec 003 (003a); not yet implemented.
+**Sounding note** (`SoundingNote`): one pitch of a notated voice from its attack to the end of its tie chain, clipped to a phrase; the unit harmonic segmentation classifies. Defined by spec 003 (003a); the model is in `core/harmony.py` and the joining is in `analysis/sounding_notes.py` (`sounding_notes`).
 
 **Staff** (`Staff`): one of the two staves of the grand staff, `Staff.UPPER` or `Staff.LOWER`.
 
@@ -160,7 +164,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Substratum**: an internal subdivision of a stratum, itself a stratum one level lower in the hierarchy. Concept, not yet implemented.
 
-**Suspension** (`NonChordToneKind.SUSPENSION`): an accented non chord tone prepared by the same pitch in its voice (tied over or repeated), dissonant at the tactus onset and resolving down by melodic step; in spec 003 its resolution takes its place from the tactus onset (ADR 0007, reading 6). Defined by spec 003 (003a); not yet implemented.
+**Suspension** (`NonChordToneKind.SUSPENSION`): an accented non chord tone prepared by the same pitch in its voice (tied over or repeated) with a consonant preparation, dissonant at the tactus onset and resolving down by melodic step; in spec 003 its resolution takes its place from the tactus onset (ADR 0007, reading 6). Defined by spec 003 (003a); the rule is in `analysis/non_chord_tones.py`.
 
 **Tactus** (`tactus_duration`): the time span within which attack divergence is judged (Fessel, 1996). In spec 002 it is the beat of the time signature: a quarter in 4/4 and 3/4, a half in 3/2, a dotted quarter in 6/8 and 12/8 (ADR 0005). Defined by spec 002; implemented in `analysis/metric_grid.py`.
 
