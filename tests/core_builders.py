@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from fractions import Fraction
 
+from aretz_texture.core.harmony import HarmonicWindow
 from aretz_texture.core.notation import (
     STEP_NAMES,
     EventPitch,
@@ -20,6 +21,7 @@ from aretz_texture.core.score import (
     Score,
     TimeSignatureChange,
 )
+from aretz_texture.core.texture import TimeSpan
 
 FOUR_FOUR = TimeSignatureChange(onset=Fraction(0), numerator=4, denominator=4)
 
@@ -109,3 +111,21 @@ def score_of(
         bars.append(Bar(number=first_number + index, onset=onset, duration=Fraction(duration)))
         onset += Fraction(duration)
     return Score(bars=tuple(bars), time_signatures=tuple(time_signatures), parts=parts)
+
+
+def harmonic_window(
+    chord_tones: tuple[str, ...],
+    onset: Fraction | int = 0,
+    end: Fraction | int = 1,
+    phrase_number: int = 1,
+) -> HarmonicWindow:
+    """Return a window over a span with the given chord tones, highest first, and no plane notes."""
+    return HarmonicWindow(
+        span=TimeSpan(onset=Fraction(onset), end=Fraction(end)),
+        phrase_number=phrase_number,
+        plane_count=len(chord_tones),
+        chord_tones=tuple(spelled_pitch(name) for name in chord_tones),
+        plane_notes=(),
+        non_chord_tones=(),
+        fermata=False,
+    )
