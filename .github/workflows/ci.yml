@@ -1,5 +1,8 @@
 # Layer 4 of the quality checks (docs/agent-pipeline.md, section 10).
-# The "checks" job is the required status check for main.
+# The "checks" job is the required status check for main. It only gathers the result of the
+# jobs below, which run in parallel: the static checks with the fast tests, and the slow corpus
+# tests split in two shards, because the round trip of the corpus alone takes about four
+# minutes and running everything in one job had grown past a quarter of an hour.
 
 name: CI
 
@@ -16,8 +19,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  checks:
-    name: checks
+  fast:
+    name: static checks and fast tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,5 +44,40 @@ jobs:
       - name: Dependency direction
         run: uv run lint-imports
 
-      - name: Full tests with coverage
-        run: uv run pytest --cov=aretz_texture --cov-report=term-missing
+      - name: Fast tests with coverage
+        run: uv run pytest -m "not slow" --cov=aretz_texture --cov-report=term-missing
+
+  slow:
+    name: slow tests (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: corpus round trip
+            selection: tests/eval/test_round_trip_corpus.py
+          - shard: other corpus tests
+            selection: tests --ignore=tests/eval/test_round_trip_corpus.py
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install environment
+        run: uv sync --locked
+
+      - name: Slow tests
+        run: uv run pytest -m slow ${{ matrix.selection }}
+
+  checks:
+    name: checks
+    if: always()
+    needs: [fast, slow]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job passed
+        run: |
+          test "${{ needs.fast.result }}" = success
+          test "${{ needs.slow.result }}" = success
