@@ -185,8 +185,12 @@ def _suspension(note: SoundingNote, neighbors: _Neighbors, grid: _Grid) -> NonCh
     if not _is_step(step_down, grid) or step_down > 0:
         return None
     longest = grid.settings.maximum_suspension_duration * tactus_at(grid.score, note.onset)
-    for onset in _suspension_onsets(note, neighbors.previous, grid):
-        if note.end <= onset + longest and _is_dissonant_at(note, onset, grid):
+    for onset, prepared in _suspension_candidates(note, neighbors.previous, grid):
+        if (
+            note.end <= onset + longest
+            and _is_dissonant_at(note, onset, grid)
+            and not _is_dissonant_at(prepared, prepared.onset, grid)
+        ):
             return NonChordTone(
                 note=note,
                 kind=NonChordToneKind.SUSPENSION,
@@ -196,22 +200,23 @@ def _suspension(note: SoundingNote, neighbors: _Neighbors, grid: _Grid) -> NonCh
     return None
 
 
-def _suspension_onsets(
+def _suspension_candidates(
     note: SoundingNote, previous: SoundingNote | None, grid: _Grid
-) -> list[Fraction]:
-    """Return the tactus onsets at which the note could be a suspension, prepared one way or other.
+) -> list[tuple[Fraction, SoundingNote]]:
+    """Return the tactus onsets at which the note could be a suspension, with its preparation.
 
-    Tied over: the first tactus onset after the attack, if the note still sounds. Repeated:
-    the attack itself, when it falls on a tactus onset after a note of the same pitch.
+    Tied over: the first tactus onset after the attack, if the note still sounds; the note
+    itself is prepared at its onset. Repeated: the attack itself, when it falls on a tactus
+    onset after a note of the same pitch, which is the preparation.
     """
-    onsets: list[Fraction] = []
+    candidates: list[tuple[Fraction, SoundingNote]] = []
     first_after = grid.first_tactus_onset_after(note.onset)
     if first_after is not None and first_after < note.end:
-        onsets.append(first_after)
+        candidates.append((first_after, note))
     repeats_previous = previous is not None and _semitones_between(previous.pitch, note.pitch) == 0
-    if repeats_previous and grid.is_accented(note):
-        onsets.append(note.onset)
-    return onsets
+    if previous is not None and repeats_previous and grid.is_accented(note):
+        candidates.append((note.onset, previous))
+    return candidates
 
 
 def _is_dissonant_at(note: SoundingNote, moment: Fraction, grid: _Grid) -> bool:

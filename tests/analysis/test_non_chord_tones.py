@@ -217,7 +217,8 @@ def test_a_suspended_fourth_above_the_bass_counts_as_dissonant() -> None:
         event(4, EIGHTH, "F4", tie=TieType.STOP),
         event(Fraction(9, 2), Fraction(7, 2), "E4"),
     ]
-    score = score_of(part_of(alto), part_of([event(0, 8, "C3")]))
+    bass = [event(0, 4, "F2"), event(4, 4, "C3")]
+    score = score_of(part_of(alto), part_of(bass))
 
     assert classified(score) == [("F4", NonChordToneKind.SUSPENSION, Fraction(4))]
 
@@ -239,7 +240,29 @@ def test_the_dissonance_is_looked_for_only_among_the_pitches_sounding_at_the_tac
         event(4, EIGHTH, "C4", tie=TieType.STOP),
         event(Fraction(9, 2), Fraction(7, 2), "B3"),
     ]
-    tenor = [event(0, 4, "D4"), event(5, 3, "D4")]
+    tenor = [event(0, 3, "D4"), event(5, 3, "D4")]
     score = score_of(part_of(alto), part_of(tenor), part_of([event(0, 8, "E3")]))
+
+    assert classified(score) == []
+
+
+def test_a_dissonant_preparation_makes_a_note_across_a_tactus_onset_a_neighbor_tone() -> None:
+    alto = [
+        event(0, Fraction(7, 4), "B3"),
+        event(Fraction(7, 4), EIGHTH, "C4"),
+        event(Fraction(9, 4), Fraction(7, 4), "B3"),
+    ]
+    score = score_of(part_of(alto), part_of([event(0, 4, "D4")]), part_of([event(0, 4, "G2")]))
+
+    assert classified(score) == [("C4", NonChordToneKind.NEIGHBOR, Fraction(7, 4))]
+
+
+def test_a_note_dissonant_when_it_starts_is_no_suspension_even_when_repeated() -> None:
+    alto = [
+        event(3, 1, "C4"),
+        event(4, EIGHTH, "C4"),
+        event(Fraction(9, 2), Fraction(7, 2), "B3"),
+    ]
+    score = score_of(part_of(alto), part_of([event(0, 8, "D4")]), part_of([event(0, 8, "G2")]))
 
     assert classified(score) == []

@@ -132,7 +132,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Quarter length**: the unit of every time value in the code: one quarter note equals 1. An eighth note is 1/2 and a triplet eighth is 1/3.
 
-**Reduced verticality**: the chord tones sounding at one attack point of a phrase, after removing non chord tones; the attack of a passing tone, neighbor tone or anticipation is no attack point, since the note is removed (ADR 0007, reading 7); harmonic segmentation merges reduced verticalities into harmonic windows. Defined by spec 003 (003a); the walk is in `analysis/harmonic_segmentation.py`.
+**Reduced verticality**: the chord tones sounding at one instant of a phrase, after removing non chord tones; verticalities are read at attacks of notes that are not passing tones, neighbor tones or anticipations, at the ends of chord tones before the end of the phrase and at the tactus onsets of suspensions (spec 003, section 3.4); harmonic segmentation merges reduced verticalities into harmonic windows. Defined by spec 003 (003a); the walk is in `analysis/harmonic_segmentation.py`.
 
 **Rest fermata** (`RestFermata`, `NotatedVoice.rest_fermatas`): a fermata written on a notated rest. Rests are otherwise not stored (silence is the time not covered by note events), so a rest that carries a fermata is kept with the onset and duration of the notated rest, always inside a gap between the events of its notated voice. The writers give it exactly that onset and duration and never split it.
 
@@ -164,7 +164,7 @@ This glossary defines each musical term as the code of Aretz Texture uses it. Id
 
 **Substratum**: an internal subdivision of a stratum, itself a stratum one level lower in the hierarchy. Concept, not yet implemented.
 
-**Suspension** (`NonChordToneKind.SUSPENSION`): an accented non chord tone prepared by the same pitch in its voice (tied over or repeated), dissonant at the tactus onset and resolving down by melodic step; in spec 003 its resolution takes its place from the tactus onset (ADR 0007, reading 6). Defined by spec 003 (003a); the rule is in `analysis/non_chord_tones.py`.
+**Suspension** (`NonChordToneKind.SUSPENSION`): an accented non chord tone prepared by the same pitch in its voice (tied over or repeated) with a consonant preparation, dissonant at the tactus onset and resolving down by melodic step; in spec 003 its resolution takes its place from the tactus onset (ADR 0007, reading 6). Defined by spec 003 (003a); the rule is in `analysis/non_chord_tones.py`.
 
 **Tactus** (`tactus_duration`): the time span within which attack divergence is judged (Fessel, 1996). In spec 002 it is the beat of the time signature: a quarter in 4/4 and 3/4, a half in 3/2, a dotted quarter in 6/8 and 12/8 (ADR 0005). Defined by spec 002; implemented in `analysis/metric_grid.py`.
 

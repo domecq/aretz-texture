@@ -3,7 +3,7 @@
 from fractions import Fraction
 from itertools import pairwise
 
-from hypothesis import HealthCheck, given, reject, settings
+from hypothesis import HealthCheck, assume, given, reject, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import DrawFn
 from tests.core_builders import event, part_of, score_of, spelled_pitch
@@ -177,6 +177,13 @@ def test_adding_an_unaccented_passing_tone_does_not_change_the_windows(
     drawn: tuple[list[list[str]], int, int, str],
 ) -> None:
     voices, voice, beat, passing = drawn
+    # The chord tone that the passing tone replaces ends where the passing tone starts, and
+    # that end is read (spec 003, section 3.4). When it is the only lowest note, the reading
+    # has no bass and a window opens; so the property holds for the other voices (PR of 003a).
+    others = [pitches[beat] for number, pitches in enumerate(voices) if number != voice]
+    assume(
+        any(CHORD_POOL.index(pitch) <= CHORD_POOL.index(voices[voice][beat]) for pitch in others)
+    )
     base = windows_of_chordal(chordal_score(voices, None))
     inserted = windows_of_chordal(chordal_score(voices, (voice, beat, passing)))
 

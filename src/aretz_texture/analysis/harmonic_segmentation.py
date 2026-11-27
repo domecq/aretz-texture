@@ -21,7 +21,6 @@ from aretz_texture.core.texture import (
     PhraseTexture,
     StreamReference,
     TexturalAnalysis,
-    TexturalConfiguration,
     TimeSpan,
 )
 
@@ -90,7 +89,7 @@ def _phrase_windows(
     )
     tones = classify_non_chord_tones(score, notes, settings)
     spans = _chord_tone_spans(notes, tones, plane_of)
-    attack_points = _attack_points(score, planes, phrase_texture, tones)
+    attack_points = _reading_instants(score, phrase_texture, notes, tones)
     starts = _window_starts(attack_points, spans)
     if not starts:
         return ()
@@ -155,32 +154,37 @@ def _verticality(spans: list[_ChordToneSpan], moment: Fraction) -> tuple[Spelled
     return tuple(sorted(pitches, key=lambda pitch: pitch.highest_first_key()))
 
 
-def _attack_points(
+def _reading_instants(
     score: Score,
-    planes: tuple[TexturalConfiguration, ...],
     phrase_texture: PhraseTexture,
+    notes: tuple[SoundingNote, ...],
     tones: tuple[NonChordTone, ...],
 ) -> list[Fraction]:
-    """Return the moments at which a verticality is read: attacks of notes that are not removed.
+    """Return the instants at which a reduced verticality is read.
 
-    A passing tone, neighbor tone or anticipation is removed from the harmony, so its attack
-    opens no window (ADR 0007, reading 7: windows are read after removing non chord tones).
+    Attacks of notes that are not passing tones, neighbor tones or anticipations (attacks of
+    suspensions count), ends before the end of the phrase of notes that are chord tones, and
+    the tactus onset of every suspension. A removed note is read nowhere: its attack would
+    leave the verticality without its voice, and a window would open (ADR 0007, reading 7).
     The start of a tie chain clipped at the phrase boundary is no attack of this phrase.
     """
-    removed = {
-        (tone.note.stream.part_number, tone.note.stream.voice_number, tone.note.onset)
-        for tone in tones
-        if tone.kind is not NonChordToneKind.SUSPENSION
+    removed = {_key_of(tone.note) for tone in tones if tone.kind is not NonChordToneKind.SUSPENSION}
+    removed_attacks = {key[:3] for key in removed}
+    streams = [
+        stream for plane in phrase_texture.configuration.leaves() for stream in plane.streams
+    ]
+    attacks = {
+        attack.onset
+        for stream in streams
+        for attack in voice_attacks(score, stream, phrase_texture.phrase.span)
+        if (stream.part_number, stream.voice_number, attack.onset) not in removed_attacks
     }
-    return sorted(
-        {
-            attack.onset
-            for plane in planes
-            for stream in plane.streams
-            for attack in voice_attacks(score, stream, phrase_texture.phrase.span)
-            if (stream.part_number, stream.voice_number, attack.onset) not in removed
-        }
-    )
+    phrase_end = max(note.end for note in notes)
+    ends = {note.end for note in notes if _key_of(note) not in removed and note.end < phrase_end}
+    suspensions = {tone.from_onset for tone in tones if tone.kind is NonChordToneKind.SUSPENSION}
+    # Silence before the first attack belongs to no window, so notes carried into the phrase
+    # that end before it are not read.
+    return sorted(instant for instant in attacks | ends | suspensions if instant >= min(attacks))
 
 
 def _window_starts(

@@ -5,7 +5,7 @@ from fractions import Fraction
 from tests.core_builders import event, part_of, score_of
 
 from aretz_texture.core.notation import NoteEvent, SpelledPitch, TieType
-from aretz_texture.core.score import Part, Score
+from aretz_texture.core.score import Score
 
 EIGHTH = Fraction(1, 2)
 
@@ -27,10 +27,15 @@ def pitch_text(pitch: SpelledPitch) -> str:
 
 
 def suspension_score(alto: list[NoteEvent]) -> Score:
-    """Return a score with an alto over G4, D4 and G2, each held for two bars."""
-    parts: list[Part] = [part_of(alto)]
-    parts += [part_of([event(0, 4, pitch), event(4, 4, pitch)]) for pitch in ("G4", "D4", "G2")]
-    return score_of(*parts)
+    """Return a score with an alto over G4, a bass C3 then G2, and D4 from the second bar.
+
+    The first bar is a C chord (C3, G4), so a C4 of the alto is consonant there; in the second
+    bar the D4 and the G2 make it a second and a fourth above the bass.
+    """
+    soprano = part_of([event(0, 4, "G4"), event(4, 4, "G4")])
+    tenor = part_of([event(4, 4, "D4")])
+    bass = part_of([event(0, 4, "C3"), event(4, 4, "G2")])
+    return score_of(part_of(alto), soprano, tenor, bass)
 
 
 def tied_alto(resolution: str, resolves_at: Fraction) -> list[NoteEvent]:

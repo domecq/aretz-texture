@@ -7,7 +7,7 @@ from tests.analysis.harmony_scores import (
     suspension_score,
     tied_alto,
 )
-from tests.core_builders import event, part_of, score_of
+from tests.core_builders import event, part_of, score_of, spelled_pitch
 
 from aretz_texture.analysis.harmonic_segmentation import segment_harmony
 from aretz_texture.analysis.settings import NonChordToneSettings, TexturalAnalysisSettings
@@ -251,8 +251,8 @@ def test_passing_tones_are_removed_from_the_chord_tones_and_recorded_in_the_wind
 def test_a_suspension_is_a_chord_tone_before_its_tactus_onset_and_its_resolution_after() -> None:
     windows = windows_of(suspension_score(tied_alto("B3", Fraction(9, 2))))
 
-    assert [bounds(window) for window in windows][-2:] == [(3, 4), (4, 8)]
-    assert chord(windows[-2]) == ["G4", "D4", "C4", "G2"]
+    assert [bounds(window) for window in windows] == [(0, 4), (4, 8)]
+    assert chord(windows[-2]) == ["G4", "C3"]
     assert chord(windows[-1]) == ["G4", "D4", "B3", "G2"]
     assert windows[-2].non_chord_tones == ()
     assert [tone.kind for tone in windows[-1].non_chord_tones] == [NonChordToneKind.SUSPENSION]
@@ -261,8 +261,8 @@ def test_a_suspension_is_a_chord_tone_before_its_tactus_onset_and_its_resolution
 def test_the_plane_note_of_a_suspended_voice_is_its_resolution_from_the_tactus_onset() -> None:
     windows = windows_of(suspension_score(tied_alto("B3", Fraction(9, 2))))
 
-    assert plane_note_texts(windows[-2])[1] == (2, "C4")
-    assert plane_note_texts(windows[-1])[1] == (2, "B3")
+    assert plane_note_texts(windows[-2])[1] == (3, "C4")
+    assert plane_note_texts(windows[-1])[2] == (3, "B3")
 
 
 def test_an_anticipation_belongs_to_no_window_and_is_recorded_in_the_window_where_it_sounds() -> (
@@ -279,3 +279,56 @@ def test_an_anticipation_belongs_to_no_window_and_is_recorded_in_the_window_wher
     assert [bounds(window) for window in windows] == [(0, 2), (2, 3), (3, 8)]
     assert [tone.kind for tone in windows[1].non_chord_tones] == [NonChordToneKind.ANTICIPATION]
     assert windows[2].non_chord_tones == ()
+
+
+def test_the_end_of_the_bass_opens_a_window_with_the_next_lowest_pitch_as_bass() -> None:
+    score = score_of(
+        part_of([event(0, 2, "G4")]),
+        part_of([event(0, 2, "D4")]),
+        part_of([event(0, 2, "B3")]),
+        part_of([event(0, 1, "G2")]),
+    )
+
+    windows = windows_of(score)
+
+    assert [bounds(window) for window in windows] == [(0, 1), (1, 2)]
+    assert [chord(window) for window in windows] == [["G4", "D4", "B3", "G2"], ["G4", "D4", "B3"]]
+    assert windows[1].bass() == spelled_pitch("B3")
+
+
+def test_the_tactus_onset_of_a_suspension_is_read_even_when_no_voice_attacks_there() -> None:
+    alto = [event(0, Fraction(3, 2), "C4"), event(Fraction(3, 2), Fraction(5, 2), "B3")]
+    score = score_of(
+        part_of(alto),
+        part_of([event(0, 4, "G4")]),
+        part_of([event(Fraction(1, 2), Fraction(7, 2), "D4")]),
+        part_of([event(0, 4, "C3")]),
+    )
+
+    windows = windows_of(score)
+
+    assert [bounds(window) for window in windows] == [
+        (0, Fraction(1, 2)),
+        (Fraction(1, 2), 1),
+        (1, 4),
+    ]
+    assert chord(windows[2]) == ["G4", "D4", "B3", "C3"]
+    assert [tone.kind for tone in windows[2].non_chord_tones] == [NonChordToneKind.SUSPENSION]
+
+
+def test_a_note_ending_at_the_end_of_the_phrase_opens_no_window() -> None:
+    score = score_of(part_of([event(0, 2, "G4")]), part_of([event(0, 4, "C3")]))
+
+    assert [bounds(window) for window in windows_of(score)] == [(0, 4)]
+
+
+def test_a_note_carried_into_a_phrase_opens_no_window_before_its_first_attack() -> None:
+    score = score_of(
+        part_of([event(0, 3, "C5"), event(Fraction(7, 2), EIGHTH, "D5")]),
+        part_of([event(0, 2, "G4", fermata=True), event(Fraction(7, 2), EIGHTH, "E4")]),
+        part_of([event(0, Fraction(7, 2), "B3"), event(Fraction(7, 2), EIGHTH, "B3")]),
+    )
+
+    windows = [window for window in windows_of(score) if window.phrase_number == 2]
+
+    assert bounds(windows[0])[0] == Fraction(7, 2)
