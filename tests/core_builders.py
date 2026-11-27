@@ -27,8 +27,9 @@ FOUR_FOUR = TimeSignatureChange(onset=Fraction(0), numerator=4, denominator=4)
 
 
 def spelled_pitch(pitch: str) -> SpelledPitch:
-    """Return a pitch written like "C4", "F#4" or "Bb3"."""
-    alter = {"#": 1, "b": -1}.get(pitch[1], 0)
+    """Return a pitch written like "C4", "F#4", "Bb3" or "Ebb4"."""
+    accidentals = pitch[1:-1]
+    alter = accidentals.count("#") - accidentals.count("b")
     return SpelledPitch(
         step=STEP_NAMES["CDEFGAB".index(pitch[0])], alter=alter, octave=int(pitch[-1])
     )
@@ -114,7 +115,7 @@ def score_of(
 
 
 def harmonic_window(
-    chord_tones: tuple[str, ...],
+    chord_tones: tuple[str | SpelledPitch, ...],
     onset: Fraction | int = 0,
     end: Fraction | int = 1,
     phrase_number: int = 1,
@@ -124,7 +125,9 @@ def harmonic_window(
         span=TimeSpan(onset=Fraction(onset), end=Fraction(end)),
         phrase_number=phrase_number,
         plane_count=len(chord_tones),
-        chord_tones=tuple(spelled_pitch(name) for name in chord_tones),
+        chord_tones=tuple(
+            spelled_pitch(name) if isinstance(name, str) else name for name in chord_tones
+        ),
         plane_notes=(),
         non_chord_tones=(),
         fermata=False,
